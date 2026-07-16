@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adaptive icon background — matches the PWA manifest background_color. -->
+    <color name="ic_launcher_background">#1a1a2e</color>
+</resources>
