@@ -3,6 +3,7 @@ package com.jewelbox.player
 import android.app.Application
 import com.jewelbox.player.data.AlbumRepository
 import com.jewelbox.player.data.ServerPrefs
+import com.jewelbox.player.playback.PlayerConnection
 
 /**
  * Application-scoped container. Manual DI is enough at this size — one repository
@@ -15,6 +16,8 @@ class JewelBoxApp : Application() {
     override fun onCreate() {
         super.onCreate()
         ServiceLocator.init(this)
+        // Binds the MediaController to the playback service for the whole app lifetime.
+        PlayerConnection.init(this)
     }
 }
 

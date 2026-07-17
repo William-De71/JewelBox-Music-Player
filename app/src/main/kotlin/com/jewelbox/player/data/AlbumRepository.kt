@@ -4,6 +4,8 @@ import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.AlbumsPage
 import com.jewelbox.player.data.net.ApiClient
 import com.jewelbox.player.data.net.HealthDto
+import com.jewelbox.player.data.net.NowPlayingBody
+import com.jewelbox.player.data.net.ScrobbleBody
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -37,4 +39,16 @@ class AlbumRepository(private val prefs: ServerPrefs) {
     /** GET /api/albums/:id — full album with its tracks. */
     suspend fun album(id: Int): AlbumDto =
         requireApi().album(id)
+
+    /** POST /api/player/tracks/:id/played — local play counter, independent of Last.fm. */
+    suspend fun markPlayed(trackId: Int) =
+        requireApi().markPlayed(trackId)
+
+    /** POST /api/lastfm/nowplaying — the Last.fm session lives server-side. */
+    suspend fun nowPlaying(trackId: Int) =
+        requireApi().nowPlaying(NowPlayingBody(trackId))
+
+    /** POST /api/lastfm/scrobble */
+    suspend fun scrobble(trackId: Int, startedAt: Long) =
+        requireApi().scrobble(ScrobbleBody(trackId, startedAt))
 }

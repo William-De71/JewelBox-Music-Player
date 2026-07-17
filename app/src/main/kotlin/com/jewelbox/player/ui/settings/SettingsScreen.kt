@@ -20,12 +20,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jewelbox.player.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +38,7 @@ fun SettingsScreen(
     val state by vm.state.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Réglages") }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.settings)) }) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -44,7 +46,7 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .fillMaxWidth(),
         ) {
-            Text("Adresse du serveur", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.server_address_label), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
 
             OutlinedTextField(
@@ -52,7 +54,7 @@ fun SettingsScreen(
                 onValueChange = vm::onUrlChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("http://192.168.1.x:3001") },
+                placeholder = { Text(stringResource(R.string.server_address_hint)) },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Done,
@@ -73,14 +75,14 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Tester")
+                    Text(stringResource(R.string.test))
                 }
 
                 Button(
                     onClick = { vm.save(); onBack() },
                     enabled = state.url.isNotBlank(),
                 ) {
-                    Text("Enregistrer")
+                    Text(stringResource(R.string.save))
                 }
             }
 
@@ -88,7 +90,7 @@ fun SettingsScreen(
             TestStatusLine(state.test)
             if (state.saved) {
                 Text(
-                    "Adresse enregistrée",
+                    stringResource(R.string.address_saved),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -101,12 +103,20 @@ fun SettingsScreen(
 private fun TestStatusLine(status: TestStatus) {
     when (status) {
         is TestStatus.Connected -> Text(
-            "✓ Connecté au serveur",
+            stringResource(R.string.server_connected),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodyMedium,
         )
+        is TestStatus.UnexpectedResponse -> Text(
+            stringResource(R.string.server_test_failed, stringResource(R.string.unexpected_response)),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+        )
         is TestStatus.Failed -> Text(
-            "✗ ${status.message}",
+            stringResource(
+                R.string.server_test_failed,
+                status.detail ?: stringResource(R.string.connection_failed),
+            ),
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
         )

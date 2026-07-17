@@ -42,18 +42,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jewelbox.player.R
 import com.jewelbox.player.data.net.AlbumDto
+import com.jewelbox.player.ui.player.MiniPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumListScreen(
     onOpenSettings: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
+    onOpenPlayer: () -> Unit,
     vm: AlbumListViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -61,7 +65,7 @@ fun AlbumListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Albums") },
+                title = { Text(stringResource(R.string.library_title)) },
                 actions = {
                     val loaded = state as? AlbumsUiState.Loaded
                     val grouped = loaded?.groupByArtist ?: false
@@ -76,11 +80,12 @@ fun AlbumListScreen(
                         onExpandAll = vm::expandAll,
                     )
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Réglages")
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 },
             )
         },
+        bottomBar = { MiniPlayer(onOpen = onOpenPlayer) },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -92,22 +97,25 @@ fun AlbumListScreen(
                 is AlbumsUiState.Loading -> CircularProgressIndicator()
 
                 is AlbumsUiState.NoServer -> CenteredMessage(
-                    text = "Aucun serveur configuré.",
-                    actionLabel = "Ouvrir les réglages",
+                    text = stringResource(R.string.no_server_configured),
+                    actionLabel = stringResource(R.string.open_settings),
                     onAction = onOpenSettings,
                 )
 
                 is AlbumsUiState.Error -> CenteredMessage(
-                    text = "Erreur : ${s.message}",
-                    actionLabel = "Réessayer",
+                    text = stringResource(
+                        R.string.error_with_detail,
+                        s.message ?: stringResource(R.string.load_failed),
+                    ),
+                    actionLabel = stringResource(R.string.retry),
                     onAction = vm::load,
                 )
 
                 is AlbumsUiState.Loaded -> {
                     if (s.albums.isEmpty()) {
                         CenteredMessage(
-                            text = "Aucun album dans la collection.",
-                            actionLabel = "Rafraîchir",
+                            text = stringResource(R.string.empty_collection),
+                            actionLabel = stringResource(R.string.refresh),
                             onAction = vm::load,
                         )
                     } else {
@@ -133,11 +141,11 @@ private fun OverflowMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
-        Icon(Icons.Filled.MoreVert, contentDescription = "Menu")
+        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.menu))
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         DropdownMenuItem(
-            text = { Text("Grouper par artiste") },
+            text = { Text(stringResource(R.string.group_by_artist)) },
             onClick = {
                 onToggleGroup()
                 expanded = false
@@ -151,7 +159,7 @@ private fun OverflowMenu(
         if (groupByArtist) {
             if (anyExpanded) {
                 DropdownMenuItem(
-                    text = { Text("Tout replier") },
+                    text = { Text(stringResource(R.string.collapse_all)) },
                     onClick = {
                         onCollapseAll()
                         expanded = false
@@ -160,7 +168,7 @@ private fun OverflowMenu(
                 )
             } else {
                 DropdownMenuItem(
-                    text = { Text("Tout déplier") },
+                    text = { Text(stringResource(R.string.expand_all)) },
                     onClick = {
                         onExpandAll()
                         expanded = false
@@ -237,7 +245,7 @@ private fun ArtistHeader(
     ) {
         Icon(
             imageVector = if (collapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess,
-            contentDescription = if (collapsed) "Déplier" else "Replier",
+            contentDescription = if (collapsed) stringResource(R.string.expand) else stringResource(R.string.collapse),
         )
         Text(
             text = name,

@@ -15,6 +15,19 @@ data class HealthDto(
     val status: String = "",
 )
 
+/** Body of POST /api/lastfm/nowplaying — the server enriches from its DB and calls Last.fm. */
+@Serializable
+data class NowPlayingBody(
+    @SerialName("track_id") val trackId: Int,
+)
+
+/** Body of POST /api/lastfm/scrobble — started_at is the epoch second playback began. */
+@Serializable
+data class ScrobbleBody(
+    @SerialName("track_id") val trackId: Int,
+    @SerialName("started_at") val startedAt: Long,
+)
+
 @Serializable
 data class ArtistDto(
     val id: Int,

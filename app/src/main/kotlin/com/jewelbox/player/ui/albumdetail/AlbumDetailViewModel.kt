@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 sealed interface AlbumDetailUiState {
     data object Loading : AlbumDetailUiState
-    data class Error(val message: String) : AlbumDetailUiState
+    data class Error(val message: String?) : AlbumDetailUiState
     data class Loaded(val serverUrl: String, val album: AlbumDto) : AlbumDetailUiState
 }
 
@@ -36,7 +36,7 @@ class AlbumDetailViewModel(private val albumId: Int) : ViewModel() {
                     _state.value = AlbumDetailUiState.Loaded(serverUrl = serverUrl, album = album)
                 }
                 .onFailure { e ->
-                    _state.value = AlbumDetailUiState.Error(e.message ?: "Échec du chargement")
+                    _state.value = AlbumDetailUiState.Error(e.message)
                 }
         }
     }

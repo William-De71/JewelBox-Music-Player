@@ -15,7 +15,12 @@ sealed interface TestStatus {
     data object Idle : TestStatus
     data object Testing : TestStatus
     data object Connected : TestStatus
-    data class Failed(val message: String) : TestStatus
+
+    /** The server answered but not with {"status":"ok"} — localized by the UI. */
+    data object UnexpectedResponse : TestStatus
+
+    /** Network/HTTP failure; detail may be null, the UI substitutes a localized fallback. */
+    data class Failed(val detail: String?) : TestStatus
 }
 
 data class SettingsUiState(
@@ -56,10 +61,9 @@ class SettingsViewModel : ViewModel() {
             _state.value = _state.value.copy(
                 test = result.fold(
                     onSuccess = { ok ->
-                        if (ok) TestStatus.Connected
-                        else TestStatus.Failed("Réponse inattendue du serveur")
+                        if (ok) TestStatus.Connected else TestStatus.UnexpectedResponse
                     },
-                    onFailure = { e -> TestStatus.Failed(e.message ?: "Connexion impossible") },
+                    onFailure = { e -> TestStatus.Failed(e.message) },
                 ),
             )
         }
