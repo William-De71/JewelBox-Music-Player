@@ -34,8 +34,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Distinct application id: the dev build installs alongside the
+            // release app (GitHub APK), so signatures never clash on the phone.
+            applicationIdSuffix = ".debug"
+            resValue("string", "app_name", "JewelBox dev")
+        }
         release {
             isMinifyEnabled = false
+            resValue("string", "app_name", "JewelBox Music Player")
             signingConfig = if (System.getenv("KEYSTORE_FILE") != null) {
                 signingConfigs.getByName("release")
             } else {
