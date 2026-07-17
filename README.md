@@ -75,10 +75,23 @@ Dans l'app : *Réglages* → adresse du serveur → *Tester* → *Enregistrer*.
 - **Émulateur** : la machine hôte est `http://10.0.2.2:3001`.
 - Le trafic est en clair (HTTP) sur le LAN — `usesCleartextTraffic="true"` est voulu.
 
+### Tests et couverture
+
+```bash
+./gradlew :app:testDebugUnitTest      # tests unitaires (JVM, sans appareil)
+./gradlew :app:koverVerifyDebug       # vérifie le seuil de couverture (95 %)
+./gradlew :app:koverHtmlReportDebug   # rapport HTML → app/build/reports/kover/htmlDebug/
+```
+
+La couverture est mesurée **sur la logique uniquement** (`data/`, `ScrobbleTracker`) :
+l'UI Compose et la glue Android (service, MediaController) sont exclues du calcul —
+elles se valident sur appareil. Le seuil de 95 % est bloquant en CI sur chaque PR.
+
 ### Workflow git
 
 Jamais de commit direct sur `main` : branche (`feat/…`, `fix/…`) → push → **pull
-request** → merge. Chaque PR déclenche un build de contrôle (`android-pr.yml`).
+request** → merge. Chaque PR déclenche tests + seuil de couverture + build
+(`android-pr.yml`).
 
 ## Release
 
