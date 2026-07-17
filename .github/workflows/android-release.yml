@@ -1,0 +1,61 @@
+name: Release APK
+run-name: Release JewelBox Music Player ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build signed APK and create release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 🐘 Setup Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 🔑 Decode release keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      # versionName from the tag (v1.2.3 → 1.2.3), versionCode from the run number
+      # (monotonically increasing, required by Android for updates).
+      - name: 🏗️ Build signed release APK
+        run: |
+          ./gradlew :app:assembleRelease --no-configuration-cache \
+            -PappVersion="${GITHUB_REF_NAME#v}" \
+            -PappVersionCode="${{ github.run_number }}"
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: 🏷️ Rename APK with version
+        run: cp app/build/outputs/apk/release/app-release.apk "JewelBox-Music-Player-${GITHUB_REF_NAME}.apk"
+
+      - name: 🚀 Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: JewelBox-Music-Player-*.apk
+          generate_release_notes: true
+          body: |
+            ## 📱 JewelBox Music Player ${{ github.ref_name }}
+
+            APK signé prêt à installer (Android 8.0+).
+
+            ### Installation
+            Télécharger `JewelBox-Music-Player-${{ github.ref_name }}.apk` ci-dessous
+            et l'ouvrir sur le téléphone (autoriser l'installation de sources inconnues).

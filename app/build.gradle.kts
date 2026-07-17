@@ -13,13 +13,34 @@ android {
         applicationId = "com.jewelbox.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI passes these from the git tag (-PappVersion=1.2.3 -PappVersionCode=N);
+        // local builds fall back to the defaults.
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 1
+        versionName = (project.findProperty("appVersion") as String?) ?: "0.1.0-dev"
+    }
+
+    // Release signing comes from the environment (CI decodes the keystore from a
+    // GitHub secret). Absent locally → release builds fall back to the debug key.
+    signingConfigs {
+        create("release") {
+            val ksPath = System.getenv("KEYSTORE_FILE")
+            if (ksPath != null) {
+                storeFile = file(ksPath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = if (System.getenv("KEYSTORE_FILE") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -69,4 +90,7 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     implementation(libs.coil.compose)
+
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.session)
 }
