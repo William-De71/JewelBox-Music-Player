@@ -91,15 +91,18 @@ elles se valident sur appareil. Le seuil de 95 % est bloquant en CI sur chaque P
 
 Jamais de commit direct sur `main` : branche (`feat/…`, `fix/…`) → push → **pull
 request** → merge. Chaque PR déclenche tests + seuil de couverture + build
-(`android-pr.yml`).
+(`android-pr.yml`). Seule exception : le commit de version créé par `release.sh`
+(même convention que `npm version` dans le dépôt de la PWA).
 
 ## Release
 
-Créer un tag de version sur `main` :
-
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+./release.sh 0.3.0
 ```
+
+Le script (façon `npm version`) monte `appVersion` dans `gradle.properties`, crée
+un **commit intitulé « 0.3.0 »** — c'est lui qui rend chaque version visible dans
+l'historique des commits — et le **tag `v0.3.0`**, puis pousse le tout.
 
 `android-release.yml` construit alors un **APK signé** et le publie en **GitHub
 Release**. La version de l'app vient du tag (`versionName`) et du numéro de run
