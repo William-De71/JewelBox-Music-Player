@@ -2,7 +2,8 @@
 <!-- Default language: French. Add res/values-en/strings.xml (same keys) for an
      English translation — Android picks the file matching the system language. -->
 <resources>
-    <string name="app_name">JewelBox</string>
+    <!-- app_name is generated per build type in app/build.gradle.kts (resValue):
+         "JewelBox" in release, "JewelBox dev" in debug. -->
 
     <!-- Bibliothèque (liste des albums) -->
     <string name="library_title">Bibliothèque</string>

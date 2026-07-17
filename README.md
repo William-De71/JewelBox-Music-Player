@@ -57,16 +57,17 @@ MVVM léger : chaque écran collecte le `StateFlow` de son ViewModel (état desc
 ### Builder et tester sur un téléphone
 
 Prérequis : SDK Android (`~/Android/Sdk`) et un JDK 17-21 (pas le JDK 25 système —
-utiliser celui d'Android Studio). Téléphone branché en USB avec le débogage activé
-(sur Xiaomi/MIUI : activer aussi « Installer via USB »).
+le script utilise celui d'Android Studio). Téléphone branché en USB avec le débogage
+activé (sur Xiaomi/MIUI : activer aussi « Installer via USB »).
 
 ```bash
-export JAVA_HOME=/var/lib/flatpak/app/com.google.AndroidStudio/current/active/files/extra/jbr
-export ANDROID_HOME=~/Android/Sdk
-
-./gradlew :app:installDebug        # build + installe sur le téléphone branché
-adb shell am start -n com.jewelbox.player/.MainActivity   # lance l'app
+./run-phone.sh          # build + installe + lance sur le téléphone branché
+./run-phone.sh --logs   # idem, puis affiche les logs de l'app
 ```
+
+Le build de dev a son propre application id (`com.jewelbox.player.debug`) : il
+s'installe **à côté** de l'app release (« JewelBox dev » vs « JewelBox » au
+lanceur), donc aucune collision de signatures avec l'APK des Releases GitHub.
 
 Dans l'app : *Réglages* → adresse du serveur → *Tester* → *Enregistrer*.
 
