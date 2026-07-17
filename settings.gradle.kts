@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "JewelBox"
+rootProject.name = "JewelBox-Music-Player"
 include(":app")

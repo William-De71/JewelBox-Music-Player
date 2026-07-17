@@ -42,7 +42,7 @@ android {
         }
         release {
             isMinifyEnabled = false
-            resValue("string", "app_name", "JewelBox")
+            resValue("string", "app_name", "JewelBox Music Player")
             signingConfig = if (System.getenv("KEYSTORE_FILE") != null) {
                 signingConfigs.getByName("release")
             } else {
