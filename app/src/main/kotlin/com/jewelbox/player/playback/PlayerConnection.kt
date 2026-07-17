@@ -67,15 +67,9 @@ object PlayerConnection {
     private val _position = MutableStateFlow(PlaybackPosition())
     val position: StateFlow<PlaybackPosition> = _position.asStateFlow()
 
-    // Scrobble bookkeeping for the current track, reset on every track change.
-    private class ScrobbleState(val trackId: Int) {
-        val startedAt: Long = System.currentTimeMillis() / 1000
-        var played = 0.0     // seconds actually listened (seek jumps excluded)
-        var lastTime = 0.0   // last observed position, in seconds
-        var scrobbled = false
-    }
-
-    private var scrobble: ScrobbleState? = null
+    // Scrobble rules live in ScrobbleTracker (pure, unit-tested); this object only
+    // feeds it player positions and fires the network calls it requests.
+    private val scrobbleTracker = ScrobbleTracker()
 
     fun init(context: Context) {
         if (controller != null) return
@@ -118,7 +112,7 @@ object PlayerConnection {
     /** New track (or replay): reset scrobble bookkeeping and tell Last.fm "now playing". */
     private fun onTrackStarted(item: MediaItem?) {
         val trackId = item?.mediaId?.toIntOrNull()
-        scrobble = trackId?.let(::ScrobbleState)
+        scrobbleTracker.onTrackStarted(trackId)
         if (trackId != null) {
             scope.launch { runCatching { ServiceLocator.albumRepository.nowPlaying(trackId) } }
         }
@@ -143,20 +137,11 @@ object PlayerConnection {
         val positionMs = c.currentPosition
         _position.value = PlaybackPosition(positionMs, durationMs)
 
-        val s = scrobble ?: return
-        val pos = positionMs / 1000.0
-        val dt = pos - s.lastTime
-        if (dt > 0 && dt < 2) s.played += dt
-        s.lastTime = pos
-
-        val duration = durationMs / 1000.0
-        if (!s.scrobbled && duration >= 30 && (s.played >= duration / 2 || s.played >= 240)) {
-            s.scrobbled = true
-            scope.launch {
-                // Local play counting first, independent of Last.fm availability.
-                runCatching { ServiceLocator.albumRepository.markPlayed(s.trackId) }
-                runCatching { ServiceLocator.albumRepository.scrobble(s.trackId, s.startedAt) }
-            }
+        val due = scrobbleTracker.onTick(positionMs / 1000.0, durationMs / 1000.0) ?: return
+        scope.launch {
+            // Local play counting first, independent of Last.fm availability.
+            runCatching { ServiceLocator.albumRepository.markPlayed(due.trackId) }
+            runCatching { ServiceLocator.albumRepository.scrobble(due.trackId, due.startedAt) }
         }
     }
 

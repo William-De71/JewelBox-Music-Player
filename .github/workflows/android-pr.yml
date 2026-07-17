@@ -24,6 +24,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       # The Android SDK is preinstalled on ubuntu-latest runners.
+      - name: ✅ Unit tests + coverage gate (95% on logic)
+        run: ./gradlew :app:testDebugUnitTest :app:koverVerifyDebug --no-configuration-cache
+
       - name: 🏗️ Build debug APK
         run: ./gradlew :app:assembleDebug --no-configuration-cache
 

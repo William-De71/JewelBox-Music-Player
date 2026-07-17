@@ -3,6 +3,36 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kover)
+}
+
+// Coverage is measured (and enforced) on the app's logic only: Compose UI,
+// the Android service and controller glue need a device and are validated by
+// hand / future instrumented tests, so they would only dilute the number.
+kover {
+    reports {
+        filters {
+            includes {
+                classes(
+                    "com.jewelbox.player.data.*",
+                    "com.jewelbox.player.playback.ScrobbleTracker*",
+                )
+            }
+            excludes {
+                // Not unit-testable on the JVM: DataStore needs a Context, and the
+                // repository is a thin pass-through over Retrofit.
+                classes(
+                    "com.jewelbox.player.data.ServerPrefs*",
+                    "com.jewelbox.player.data.AlbumRepository*",
+                )
+            }
+        }
+        verify {
+            rule("Logic line coverage") {
+                minBound(95)
+            }
+        }
+    }
 }
 
 android {
@@ -100,4 +130,7 @@ dependencies {
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 }
