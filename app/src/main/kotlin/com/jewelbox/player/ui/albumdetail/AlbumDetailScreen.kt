@@ -1,5 +1,6 @@
 package com.jewelbox.player.ui.albumdetail
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,24 +35,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.jewelbox.player.R
 import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
+import com.jewelbox.player.playback.PlayerConnection
+import com.jewelbox.player.ui.player.MiniPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumDetailScreen(
     albumId: Int,
     onBack: () -> Unit,
+    onOpenPlayer: () -> Unit,
     vm: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.Factory(albumId)),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -59,16 +67,17 @@ fun AlbumDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val title = (state as? AlbumDetailUiState.Loaded)?.album?.title ?: "Album"
+                    val title = (state as? AlbumDetailUiState.Loaded)?.album?.title ?: stringResource(R.string.album_fallback_title)
                     Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
         },
+        bottomBar = { MiniPlayer(onOpen = onOpenPlayer) },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -83,9 +92,15 @@ fun AlbumDetailScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(24.dp),
                 ) {
-                    Text("Erreur : ${s.message}", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(
+                            R.string.error_with_detail,
+                            s.message ?: stringResource(R.string.load_failed),
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = vm::load) { Text("Réessayer") }
+                    Button(onClick = vm::load) { Text(stringResource(R.string.retry)) }
                 }
 
                 is AlbumDetailUiState.Loaded -> AlbumDetailContent(s.album, s.serverUrl)
@@ -96,6 +111,8 @@ fun AlbumDetailScreen(
 
 @Composable
 private fun AlbumDetailContent(album: AlbumDto, serverUrl: String) {
+    val playback by PlayerConnection.state.collectAsStateWithLifecycle()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -105,19 +122,23 @@ private fun AlbumDetailContent(album: AlbumDto, serverUrl: String) {
         if (album.tracks.isNotEmpty()) {
             item {
                 Text(
-                    "Pistes",
+                    stringResource(R.string.tracks_header),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
                 )
             }
             items(items = album.tracks, key = { it.id }) { track ->
-                TrackRow(track)
+                TrackRow(
+                    track = track,
+                    isCurrent = playback.currentTrackId == track.id,
+                    onPlay = { PlayerConnection.playAlbum(serverUrl, album, track.id) },
+                )
                 HorizontalDivider()
             }
         } else {
             item {
                 Text(
-                    "Aucune piste pour cet album.",
+                    stringResource(R.string.no_tracks),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 20.dp),
@@ -189,22 +210,42 @@ private fun AlbumHeader(album: AlbumDto, serverUrl: String) {
 }
 
 @Composable
-private fun TrackRow(track: TrackDto) {
+private fun TrackRow(
+    track: TrackDto,
+    isCurrent: Boolean,
+    onPlay: () -> Unit,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // Only tracks with an audio file on the server are playable.
+            .clickable(enabled = track.hasFile, onClick = onPlay)
+            // Dim the whole row when there is no audio file, like a disabled item.
+            .alpha(if (track.hasFile) 1f else 0.38f)
             .padding(vertical = 12.dp),
     ) {
-        Text(
-            text = track.position.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(28.dp),
-        )
+        if (isCurrent) {
+            Icon(
+                imageVector = Icons.Filled.GraphicEq,
+                contentDescription = stringResource(R.string.now_playing_indicator),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(28.dp),
+            )
+        } else {
+            Text(
+                text = track.position.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(28.dp),
+            )
+        }
         Text(
             text = track.title,
             style = MaterialTheme.typography.bodyLarge,
+            // Row alpha already dims unplayable tracks; here only the current one stands out.
+            color = if (isCurrent) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -212,7 +253,7 @@ private fun TrackRow(track: TrackDto) {
         if (track.isFavorite) {
             Icon(
                 imageVector = Icons.Filled.Favorite,
-                contentDescription = "Favori",
+                contentDescription = stringResource(R.string.favorite),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .padding(horizontal = 8.dp)

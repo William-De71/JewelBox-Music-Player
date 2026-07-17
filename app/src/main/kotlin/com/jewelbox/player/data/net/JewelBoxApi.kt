@@ -1,6 +1,8 @@
 package com.jewelbox.player.data.net
 
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -28,4 +30,16 @@ interface JewelBoxApi {
 
     @GET("api/albums/{id}")
     suspend fun album(@Path("id") id: Int): AlbumDto
+
+    /** Local play counter (play_count/last_played_at), independent of Last.fm. */
+    @POST("api/player/tracks/{id}/played")
+    suspend fun markPlayed(@Path("id") id: Int)
+
+    // Both Last.fm calls are fire-and-forget on the server side: it replies 204
+    // even when scrobbling is unavailable, so playback is never disturbed.
+    @POST("api/lastfm/nowplaying")
+    suspend fun nowPlaying(@Body body: NowPlayingBody)
+
+    @POST("api/lastfm/scrobble")
+    suspend fun scrobble(@Body body: ScrobbleBody)
 }
