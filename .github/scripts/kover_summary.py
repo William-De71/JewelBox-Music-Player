@@ -43,14 +43,32 @@ def main(path):
     total_pct = pct(*total)
     gate = "✅" if total_pct >= 95 else "❌"
 
-    print(f"## 📊 Couverture des lignes (logique) : {total_pct:.1f}% {gate}")
+    def table(entries):
+        lines = ["| Classe | Lignes | % |", "|---|---:|---:|"]
+        for name, (covered, missed) in entries:
+            lines.append(f"| `{name}` | {covered}/{covered + missed} | {pct(covered, missed):.1f}% |")
+        return "\n".join(lines)
+
+    by_pct = sorted(rows.items(), key=lambda r: pct(*r[1]))
+    incomplete = [(name, counts) for name, counts in by_pct if counts[1] > 0]
+
+    # Compact by default: the total, then only what needs attention; the full
+    # per-class table stays one click away in a collapsed block.
+    print(f"### 📊 Couverture des lignes (logique) : **{total_pct:.1f}%** {gate} <sub>(gate : 95 %)</sub>")
     print()
-    print(f"Gate : 95 % — {total[0]} lignes couvertes, {total[1]} manquées.")
+    if incomplete:
+        print(f"{total[1]} ligne(s) manquée(s) dans {len(incomplete)} classe(s) :")
+        print()
+        print(table(incomplete))
+    else:
+        print("Toutes les classes mesurées sont à 100 %. 🎉")
     print()
-    print("| Classe | Lignes couvertes | % |")
-    print("|---|---:|---:|")
-    for name, (covered, missed) in sorted(rows.items(), key=lambda r: pct(*r[1])):
-        print(f"| `{name}` | {covered}/{covered + missed} | {pct(covered, missed):.1f}% |")
+    print("<details>")
+    print(f"<summary>Détail des {len(rows)} classes mesurées</summary>")
+    print()
+    print(table(by_pct))
+    print()
+    print("</details>")
 
 
 if __name__ == "__main__":

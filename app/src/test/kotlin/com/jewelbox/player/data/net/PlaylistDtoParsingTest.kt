@@ -176,6 +176,24 @@ class PlaylistDtoParsingTest {
     }
 
     @Test
+    fun `dtos expose their serializer for direct use`() {
+        // Mirrors how a caller would pass an explicit serializer (as the
+        // request-body test does); also pins the wire names of the types.
+        assertEquals(
+            "com.jewelbox.player.data.net.QueueTrackDto",
+            QueueTrackDto.serializer().descriptor.serialName,
+        )
+        assertEquals(
+            "com.jewelbox.player.data.net.PlaylistSummaryDto",
+            PlaylistSummaryDto.serializer().descriptor.serialName,
+        )
+        assertEquals(
+            "com.jewelbox.player.data.net.SmartPlaylistMetaDto",
+            SmartPlaylistMetaDto.serializer().descriptor.serialName,
+        )
+    }
+
+    @Test
     fun `dto defaults are safe when fields are absent`() {
         val track = QueueTrackDto(id = 1, title = "T")
         assertNull(track.entryId)
@@ -185,10 +203,21 @@ class PlaylistDtoParsingTest {
         assertEquals("", track.albumTitle)
         assertNull(track.coverUrl)
 
+        val playlist = PlaylistDto(id = 1, name = "P")
+        assertTrue(playlist.tracks.isEmpty())
+        assertNull(playlist.createdAt)
+        assertNull(playlist.updatedAt)
+        assertEquals(0, playlist.added)
+
+        val summary = PlaylistSummaryDto(id = 1, name = "P")
+        assertEquals(0, summary.trackCount)
+        assertEquals(0, summary.totalDurationSeconds)
+        assertNull(summary.createdAt)
+
+        assertEquals(0, SmartPlaylistMetaDto(key = "newest").trackCount)
         assertTrue(PlaylistsResponse().data.isEmpty())
         assertTrue(SmartPlaylistsResponse().data.isEmpty())
         assertTrue(SmartPlaylistDto().tracks.isEmpty())
         assertFalse(DynamicMixPlayedDto().removed)
-        assertEquals(0, PlaylistSummaryDto(id = 1, name = "P").trackCount)
     }
 }

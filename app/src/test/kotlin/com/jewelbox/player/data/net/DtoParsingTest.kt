@@ -150,10 +150,10 @@ class DtoParsingTest {
         assertEquals(0, track.playCount)
         assertNull(track.duration)
 
-        val album = AlbumDto(id = 1, title = "A", artist = ArtistDto(1, "X"))
+        val album = AlbumDto(id = 1, title = "A", artist = ArtistDto(1, "X"), label = LabelDto(2, "L"))
         assertFalse(album.hasAudio)
         assertTrue(album.tracks.isEmpty())
-        assertNull(album.label)
+        assertEquals("L", album.label?.name)
 
         val page = AlbumsPage()
         assertTrue(page.data.isEmpty())
