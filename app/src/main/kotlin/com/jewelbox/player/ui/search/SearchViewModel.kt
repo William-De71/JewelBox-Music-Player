@@ -12,14 +12,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 sealed interface SearchUiState {
     /** Query empty or too short: show the prompt, no network call. */
     data object Idle : SearchUiState
     data object NoServer : SearchUiState
     data object Loading : SearchUiState
-    /** [serverTooOld] flags a 404 on the endpoint: the server predates 1.7. */
+    /** [serverTooOld]: the server predates 1.7, see SearchLogic.isServerTooOld. */
     data class Error(val message: String?, val serverTooOld: Boolean = false) : SearchUiState
     data class Loaded(
         val serverUrl: String,
@@ -83,7 +82,7 @@ class SearchViewModel : ViewModel() {
             .onFailure { e ->
                 _state.value = SearchUiState.Error(
                     message = e.message,
-                    serverTooOld = (e as? HttpException)?.code() == 404,
+                    serverTooOld = SearchLogic.isServerTooOld(e),
                 )
             }
     }
