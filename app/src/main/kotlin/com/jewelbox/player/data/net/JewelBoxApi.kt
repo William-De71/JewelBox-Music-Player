@@ -90,6 +90,15 @@ interface JewelBoxApi {
     @POST("api/smart-playlists/dynamic_mix/refresh")
     suspend fun dynamicMixRefresh(): SmartPlaylistDto
 
+    // ── Recherche ────────────────────────────────────────────────────────────
+
+    /**
+     * Library search over album titles, artist names and track titles.
+     * Requires server >= 1.7 (404 on older servers); q must be >= 2 characters.
+     */
+    @GET("api/player/search")
+    suspend fun search(@Query("q") query: String): SearchResultsDto
+
     // ── Favoris ──────────────────────────────────────────────────────────────
 
     @PATCH("api/player/tracks/{id}/favorite")

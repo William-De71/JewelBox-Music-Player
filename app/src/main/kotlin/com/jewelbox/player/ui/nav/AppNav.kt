@@ -13,10 +13,12 @@ import com.jewelbox.player.ui.player.NowPlayingScreen
 import com.jewelbox.player.ui.playlists.PlaylistDetailScreen
 import com.jewelbox.player.ui.playlists.PlaylistsScreen
 import com.jewelbox.player.ui.playlists.SmartPlaylistScreen
+import com.jewelbox.player.ui.search.SearchScreen
 import com.jewelbox.player.ui.settings.SettingsScreen
 
 private object Routes {
     const val ALBUMS = "albums"
+    const val SEARCH = "search"
     const val SETTINGS = "settings"
     const val ALBUM_DETAIL = "album/{albumId}"
     const val NOW_PLAYING = "player"
@@ -35,7 +37,11 @@ fun AppNav() {
     // Standard bottom-bar pattern: one back-stack entry per tab, whose state is
     // saved and restored when switching back and forth.
     fun switchTab(tab: RootTab) = nav.navigate(
-        if (tab == RootTab.LIBRARY) Routes.ALBUMS else Routes.PLAYLISTS,
+        when (tab) {
+            RootTab.LIBRARY -> Routes.ALBUMS
+            RootTab.SEARCH -> Routes.SEARCH
+            RootTab.PLAYLISTS -> Routes.PLAYLISTS
+        },
     ) {
         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
@@ -59,6 +65,12 @@ fun AppNav() {
                 onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                 onOpenAlbum = { id -> nav.navigate(Routes.albumDetail(id)) },
                 bottomBar = { bottomBar(RootTab.LIBRARY) },
+            )
+        }
+        composable(Routes.SEARCH) {
+            SearchScreen(
+                onOpenAlbum = { id -> nav.navigate(Routes.albumDetail(id)) },
+                bottomBar = { bottomBar(RootTab.SEARCH) },
             )
         }
         composable(Routes.PLAYLISTS) {

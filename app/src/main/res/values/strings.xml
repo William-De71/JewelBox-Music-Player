@@ -85,6 +85,16 @@
     <string name="unfavorite">Retirer des favoris</string>
     <string name="new_mix">Relancer un mix complet</string>
 
+    <!-- Recherche -->
+    <string name="search_title">Recherche</string>
+    <string name="search_placeholder">Album, artiste ou titre…</string>
+    <string name="search_prompt">Recherchez un album, un artiste ou un titre.</string>
+    <string name="search_no_results">Aucun résultat.</string>
+    <string name="search_albums_header">Albums</string>
+    <string name="search_tracks_header">Titres</string>
+    <string name="search_clear">Effacer</string>
+    <string name="search_server_too_old">Recherche indisponible : mettez à jour le serveur JewelBox (version 1.7 ou plus).</string>
+
     <!-- Réglages -->
     <string name="server_address_label">Adresse du serveur</string>
     <string name="server_address_hint">http://192.168.1.x:3001</string>
