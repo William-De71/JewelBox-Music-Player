@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.QueueTrackDto
+import com.jewelbox.player.playback.PlayerConnection
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +50,20 @@ class SmartPlaylistViewModel(private val smartKey: String) : ViewModel() {
             runCatching { repo.refreshDynamicMix() }
                 .onSuccess { _state.value = SmartPlaylistUiState.Loaded(serverUrl, it.tracks) }
                 .onFailure { _state.value = SmartPlaylistUiState.Error(it.message) }
+        }
+    }
+
+    /** Dynamic mix only: drops a disliked track; the playing queue follows. */
+    fun removeMixTrack(trackId: Int) {
+        viewModelScope.launch {
+            runCatching { repo.removeDynamicMixTrack(trackId) }
+                .onSuccess { res ->
+                    (_state.value as? SmartPlaylistUiState.Loaded)
+                        ?.let { _state.value = it.copy(tracks = res.tracks) }
+                    PlayerConnection.onDynamicMixTrackRemoved(res.tracks)
+                    _notice.value = PlaylistNotice.TrackRemoved
+                }
+                .onFailure { _notice.value = PlaylistNotice.Failed(it.message) }
         }
     }
 

@@ -178,7 +178,22 @@ object PlayerConnection {
         }
     }
 
-    private fun syncDynamicMixQueue(serverTracks: List<QueueTrackDto>, restart: Boolean) {
+    /**
+     * The user manually removed a disliked track from the dynamic mix. Mirrors
+     * the fresh server list into the queue; unlike the played-through rotation,
+     * the removed track is yanked even while it is playing — Media3 then moves
+     * on to the next item by itself.
+     */
+    fun onDynamicMixTrackRemoved(serverTracks: List<QueueTrackDto>) {
+        if (!dynamicMix) return
+        syncDynamicMixQueue(serverTracks, restart = false, yankCurrent = true)
+    }
+
+    private fun syncDynamicMixQueue(
+        serverTracks: List<QueueTrackDto>,
+        restart: Boolean,
+        yankCurrent: Boolean = false,
+    ) {
         val c = controller ?: return
         val serverUrl = queueServerUrl ?: return
         if (restart) {
@@ -192,14 +207,17 @@ object PlayerConnection {
         val currentIds = (0 until c.mediaItemCount)
             .mapNotNull { c.getMediaItemAt(it).mediaId.toIntOrNull() }
         val plan = DynamicMixSync.plan(currentIds, serverTracks)
+        // Append before removing, so yanking the playing item always leaves it
+        // a next one to fall through to.
+        c.addMediaItems(plan.append.filter { it.hasFile }.map { mediaItem(serverUrl, it) })
         for (id in plan.removeIds) {
             val index = (0 until c.mediaItemCount)
                 .firstOrNull { c.getMediaItemAt(it).mediaId == id.toString() } ?: continue
-            // Never yank the item being listened to, even if the server dropped it.
-            if (index == c.currentMediaItemIndex) continue
+            // The rotation never yanks the item being listened to, even if the
+            // server dropped it; a manual removal does.
+            if (index == c.currentMediaItemIndex && !yankCurrent) continue
             c.removeMediaItem(index)
         }
-        c.addMediaItems(plan.append.filter { it.hasFile }.map { mediaItem(serverUrl, it) })
     }
 
     /**
