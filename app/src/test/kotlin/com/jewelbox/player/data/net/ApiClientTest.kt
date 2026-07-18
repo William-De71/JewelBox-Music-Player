@@ -113,6 +113,31 @@ class ApiClientTest {
     }
 
     @Test
+    fun `search sends the query and parses both sections`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(
+                MockResponse().setBody(
+                    """
+                    {"albums":[{"id":1,"title":"Discovery","artist":{"id":3,"name":"Daft Punk"}}],
+                     "tracks":[{"id":100,"position":1,"title":"One More Time","has_file":true,
+                                "album_id":1,"album_title":"Discovery","artist_name":"Daft Punk"}]}
+                    """.trimIndent()
+                )
+            )
+            server.start()
+
+            val api = ApiClient.create(server.url("/").toString())
+            val results = api.search("daft")
+
+            assertEquals(1, results.albums.size)
+            assertEquals("Daft Punk", results.albums[0].artist.name)
+            assertEquals(1, results.tracks.size)
+            assertEquals("Discovery", results.tracks[0].albumTitle)
+            assertEquals("/api/player/search?q=daft", server.takeRequest().path)
+        }
+    }
+
+    @Test
     fun `scrobble posts a snake_case json body`() = runBlocking {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().setResponseCode(204))

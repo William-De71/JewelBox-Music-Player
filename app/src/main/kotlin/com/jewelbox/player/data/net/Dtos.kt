@@ -172,6 +172,16 @@ data class DynamicMixPlayedDto(
     val tracks: List<QueueTrackDto> = emptyList(),
 )
 
+/**
+ * Response of GET /api/player/search (server >= 1.7): both sections in one call,
+ * capped server-side (30 albums / 100 tracks) instead of paginated.
+ */
+@Serializable
+data class SearchResultsDto(
+    val albums: List<AlbumDto> = emptyList(),
+    val tracks: List<QueueTrackDto> = emptyList(),
+)
+
 @Serializable
 data class Pagination(
     val total: Int = 0,

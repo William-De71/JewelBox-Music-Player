@@ -20,6 +20,34 @@ class DtoParsingTest {
     }
 
     @Test
+    fun `parses search results and defaults missing sections`() {
+        val payload = """
+        {
+          "albums": [{"id": 1, "title": "Discovery", "artist": {"id": 3, "name": "Daft Punk"}}],
+          "tracks": [
+            {"id": 100, "position": 1, "title": "One More Time", "duration": "5:20",
+             "has_file": true, "play_count": 2, "is_favorite": false,
+             "album_id": 1, "album_title": "Discovery", "artist_name": "Daft Punk",
+             "cover_url": "/covers/abc"}
+          ]
+        }
+        """.trimIndent()
+
+        val results = json.decodeFromString<SearchResultsDto>(payload)
+
+        assertEquals(1, results.albums.size)
+        assertEquals("Daft Punk", results.albums[0].artist.name)
+        assertEquals(1, results.tracks.size)
+        assertEquals("Discovery", results.tracks[0].albumTitle)
+        assertTrue(results.tracks[0].hasFile)
+
+        // A partial payload (older server, unexpected shape) must not crash.
+        val empty = json.decodeFromString<SearchResultsDto>("{}")
+        assertTrue(empty.albums.isEmpty())
+        assertTrue(empty.tracks.isEmpty())
+    }
+
+    @Test
     fun `parses a full album with tracks`() {
         val payload = """
         {
