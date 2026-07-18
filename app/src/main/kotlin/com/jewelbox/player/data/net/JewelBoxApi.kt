@@ -90,6 +90,13 @@ interface JewelBoxApi {
     @POST("api/smart-playlists/dynamic_mix/refresh")
     suspend fun dynamicMixRefresh(): SmartPlaylistDto
 
+    /**
+     * Manual removal of a disliked track: the server drops it from the list and
+     * refills the bottom, like /played (needs server >= 1.8; 404 before that).
+     */
+    @DELETE("api/smart-playlists/dynamic_mix/tracks/{id}")
+    suspend fun dynamicMixRemove(@Path("id") id: Int): DynamicMixPlayedDto
+
     // ── Recherche ────────────────────────────────────────────────────────────
 
     /**

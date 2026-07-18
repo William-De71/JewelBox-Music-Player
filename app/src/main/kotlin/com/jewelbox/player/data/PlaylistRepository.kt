@@ -63,6 +63,10 @@ class PlaylistRepository(private val prefs: ServerPrefs) {
     /** Throws the current mix away and draws a brand-new one. */
     suspend fun refreshDynamicMix(): SmartPlaylistDto = api().dynamicMixRefresh()
 
+    /** Manually drops a disliked track from the mix; the server refills the list. */
+    suspend fun removeDynamicMixTrack(trackId: Int): DynamicMixPlayedDto =
+        api().dynamicMixRemove(trackId)
+
     // ── Favoris ──────────────────────────────────────────────────────────────
 
     suspend fun setFavorite(trackId: Int, isFavorite: Boolean) =

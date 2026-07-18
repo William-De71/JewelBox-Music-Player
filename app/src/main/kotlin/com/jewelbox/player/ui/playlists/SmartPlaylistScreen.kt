@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -123,6 +124,7 @@ fun SmartPlaylistScreen(
                     smartKey = smartKey,
                     tracks = s.tracks,
                     onToggleFavorite = vm::toggleFavorite,
+                    onRemoveTrack = if (smartKey == DYNAMIC_MIX_KEY) vm::removeMixTrack else null,
                 )
             }
         }
@@ -135,6 +137,7 @@ private fun SmartPlaylistContent(
     smartKey: String,
     tracks: List<QueueTrackDto>,
     onToggleFavorite: (Int) -> Unit,
+    onRemoveTrack: ((Int) -> Unit)? = null,
 ) {
     val playback by PlayerConnection.state.collectAsStateWithLifecycle()
     val dynamic = smartKey == DYNAMIC_MIX_KEY
@@ -204,6 +207,17 @@ private fun SmartPlaylistContent(
                         }
                     },
                     onToggleFavorite = { onToggleFavorite(track.id) },
+                    trailing = onRemoveTrack?.let { remove ->
+                        {
+                            IconButton(onClick = { remove(track.id) }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.mix_remove_track),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
                 )
                 HorizontalDivider()
             }

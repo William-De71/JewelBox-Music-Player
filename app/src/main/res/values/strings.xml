@@ -84,6 +84,7 @@
     <string name="cancel">Annuler</string>
     <string name="unfavorite">Retirer des favoris</string>
     <string name="new_mix">Relancer un mix complet</string>
+    <string name="mix_remove_track">Retirer du mix</string>
 
     <!-- Recherche -->
     <string name="search_title">Recherche</string>
