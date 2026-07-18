@@ -1,8 +1,11 @@
 package com.jewelbox.player.data.net
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -42,4 +45,53 @@ interface JewelBoxApi {
 
     @POST("api/lastfm/scrobble")
     suspend fun scrobble(@Body body: ScrobbleBody)
+
+    // ── Playlists (user-defined) ─────────────────────────────────────────────
+
+    @GET("api/playlists")
+    suspend fun playlists(): PlaylistsResponse
+
+    @POST("api/playlists")
+    suspend fun createPlaylist(@Body body: CreatePlaylistBody): PlaylistDto
+
+    @GET("api/playlists/{id}")
+    suspend fun playlist(@Path("id") id: Int): PlaylistDto
+
+    @PATCH("api/playlists/{id}")
+    suspend fun renamePlaylist(@Path("id") id: Int, @Body body: CreatePlaylistBody): PlaylistDto
+
+    @DELETE("api/playlists/{id}")
+    suspend fun deletePlaylist(@Path("id") id: Int)
+
+    /** Appends one track (track_id) or a whole album (album_id) at the end. */
+    @POST("api/playlists/{id}/tracks")
+    suspend fun addToPlaylist(@Path("id") id: Int, @Body body: AddTracksBody): PlaylistDto
+
+    @DELETE("api/playlists/{id}/tracks/{entryId}")
+    suspend fun removePlaylistEntry(@Path("id") id: Int, @Path("entryId") entryId: Int): PlaylistDto
+
+    /** Full reorder: the body carries every entry id in the new order. */
+    @PUT("api/playlists/{id}/tracks")
+    suspend fun reorderPlaylist(@Path("id") id: Int, @Body body: ReorderBody): PlaylistDto
+
+    // ── Smart playlists ──────────────────────────────────────────────────────
+
+    @GET("api/smart-playlists")
+    suspend fun smartPlaylists(): SmartPlaylistsResponse
+
+    @GET("api/smart-playlists/{key}")
+    suspend fun smartPlaylist(@Path("key") key: String): SmartPlaylistDto
+
+    /** A dynamic mix track finished playing: the server rotates and refills the list. */
+    @POST("api/smart-playlists/dynamic_mix/played")
+    suspend fun dynamicMixPlayed(@Body body: DynamicMixPlayedBody): DynamicMixPlayedDto
+
+    /** Discards the current mix and draws a completely new one (needs server >= 1.6). */
+    @POST("api/smart-playlists/dynamic_mix/refresh")
+    suspend fun dynamicMixRefresh(): SmartPlaylistDto
+
+    // ── Favoris ──────────────────────────────────────────────────────────────
+
+    @PATCH("api/player/tracks/{id}/favorite")
+    suspend fun setFavorite(@Path("id") id: Int, @Body body: FavoriteBody)
 }

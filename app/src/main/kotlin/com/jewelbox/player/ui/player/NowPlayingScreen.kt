@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -140,13 +142,34 @@ fun NowPlayingScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(24.dp))
 
-            Text(
-                text = state.title.orEmpty(),
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // Title centered as before; the favorite heart is detached from it,
+            // pinned to the right edge of the same line.
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = state.title.orEmpty(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        // Keeps a long title from sliding under the heart button.
+                        .padding(horizontal = 48.dp),
+                )
+                IconButton(
+                    onClick = PlayerConnection::toggleFavorite,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                ) {
+                    Icon(
+                        imageVector = if (state.isFavorite) Icons.Filled.Favorite
+                                      else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (state.isFavorite) stringResource(R.string.unfavorite)
+                                             else stringResource(R.string.favorite),
+                        tint = if (state.isFavorite) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Text(
                 text = state.artist.orEmpty(),
                 style = MaterialTheme.typography.titleMedium,

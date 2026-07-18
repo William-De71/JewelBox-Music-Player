@@ -33,12 +33,14 @@ import com.jewelbox.player.R
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    bottomBar: @Composable () -> Unit,
     vm: SettingsViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.settings)) }) },
+        bottomBar = bottomBar,
     ) { padding ->
         Column(
             modifier = Modifier

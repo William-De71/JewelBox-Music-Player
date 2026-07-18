@@ -49,15 +49,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jewelbox.player.R
-import com.jewelbox.player.data.net.AlbumDto
-import com.jewelbox.player.ui.player.MiniPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumListScreen(
     onOpenSettings: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
-    onOpenPlayer: () -> Unit,
+    bottomBar: @Composable () -> Unit,
     vm: AlbumListViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -85,7 +83,7 @@ fun AlbumListScreen(
                 },
             )
         },
-        bottomBar = { MiniPlayer(onOpen = onOpenPlayer) },
+        bottomBar = bottomBar,
     ) { padding ->
         Box(
             modifier = Modifier
