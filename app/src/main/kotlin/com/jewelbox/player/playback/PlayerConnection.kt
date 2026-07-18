@@ -3,6 +3,7 @@ package com.jewelbox.player.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -12,6 +13,7 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.AlbumDto
+import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +29,13 @@ import kotlinx.coroutines.launch
 /** Repeat cycle exposed to the UI without leaking Media3 constants. */
 enum class RepeatMode { OFF, ALL, ONE }
 
+/** Where the current queue was started from, so lists can flag their playing row. */
+sealed interface QueueSource {
+    data class Album(val albumId: Int) : QueueSource
+    data class Playlist(val playlistId: Int) : QueueSource
+    data class Smart(val key: String) : QueueSource
+}
+
 /** What the UI needs to render playback state (mini-player, current-track highlight). */
 data class PlaybackUiState(
     val hasItem: Boolean = false,
@@ -36,6 +45,7 @@ data class PlaybackUiState(
     val artist: String? = null,
     val album: String? = null,
     val artworkUrl: String? = null,
+    val isFavorite: Boolean = false,
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,
     val shuffleEnabled: Boolean = false,
@@ -58,14 +68,28 @@ data class PlaybackPosition(
  */
 object PlayerConnection {
 
+    /** MediaMetadata extras key carrying the track's favorite flag through Media3. */
+    private const val EXTRA_IS_FAVORITE = "jewelbox.is_favorite"
+
     private var controller: MediaController? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // True while the queue is the server's persistent dynamic mix: each finished
+    // track is reported so the server rotates the list, and the queue is topped
+    // up with the tracks it sends back (same behaviour as the PWA PlayerContext).
+    private var dynamicMix = false
+    private var queueServerUrl: String? = null
 
     private val _state = MutableStateFlow(PlaybackUiState())
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
 
     private val _position = MutableStateFlow(PlaybackPosition())
     val position: StateFlow<PlaybackPosition> = _position.asStateFlow()
+
+    // Origin of the current queue; null until something is played. Survives
+    // pause/stop on purpose: the list highlight follows the loaded queue.
+    private val _queueSource = MutableStateFlow<QueueSource?>(null)
+    val queueSource: StateFlow<QueueSource?> = _queueSource.asStateFlow()
 
     // Scrobble rules live in ScrobbleTracker (pure, unit-tested); this object only
     // feeds it player positions and fires the network calls it requests.
@@ -80,8 +104,21 @@ object PlayerConnection {
             controller = c
             c.addListener(object : Player.Listener {
                 override fun onEvents(player: Player, events: Player.Events) = syncState(player)
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) =
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    // AUTO means the previous item played through to its end —
+                    // the trigger for the dynamic mix rotation (seeks/skips don't count).
+                    val endedId = lastTrackId
+                    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && endedId != null) {
+                        onTrackEnded(endedId, queueExhausted = false)
+                    }
                     onTrackStarted(mediaItem)
+                }
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    // The very last item of the queue finished (no AUTO transition then).
+                    if (playbackState == Player.STATE_ENDED) {
+                        lastTrackId?.let { onTrackEnded(it, queueExhausted = true) }
+                    }
+                }
             })
             syncState(c)
             startTicker()
@@ -98,6 +135,7 @@ object PlayerConnection {
             artist = item?.mediaMetadata?.artist?.toString(),
             album = item?.mediaMetadata?.albumTitle?.toString(),
             artworkUrl = item?.mediaMetadata?.artworkUri?.toString(),
+            isFavorite = item?.mediaMetadata?.extras?.getBoolean(EXTRA_IS_FAVORITE) ?: false,
             hasNext = player.hasNextMediaItem(),
             hasPrevious = player.hasPreviousMediaItem(),
             shuffleEnabled = player.shuffleModeEnabled,
@@ -109,13 +147,59 @@ object PlayerConnection {
         )
     }
 
+    // Id of the item currently loaded in the player, so a transition can name
+    // the track that just ended (the player has already moved on at that point).
+    private var lastTrackId: Int? = null
+
     /** New track (or replay): reset scrobble bookkeeping and tell Last.fm "now playing". */
     private fun onTrackStarted(item: MediaItem?) {
         val trackId = item?.mediaId?.toIntOrNull()
+        lastTrackId = trackId
         scrobbleTracker.onTrackStarted(trackId)
         if (trackId != null) {
             scope.launch { runCatching { ServiceLocator.albumRepository.nowPlaying(trackId) } }
         }
+    }
+
+    /**
+     * A track played through to its end. In dynamic mix mode the server is told
+     * (it removes the track and refills the bottom of the list) and the local
+     * queue is brought up to date with what it sends back; [queueExhausted]
+     * means nothing is left to play, so playback restarts on the fresh list —
+     * mirroring the PWA (client/src/components/PlayerContext.jsx#consumeDynamicMix).
+     */
+    private fun onTrackEnded(trackId: Int, queueExhausted: Boolean) {
+        if (!dynamicMix) return
+        scope.launch {
+            val fresh = runCatching { ServiceLocator.playlistRepository.dynamicMixPlayed(trackId) }
+                .getOrNull() ?: return@launch
+            // Another queue may have taken over while the request was in flight.
+            if (dynamicMix) syncDynamicMixQueue(fresh.tracks, restart = queueExhausted)
+        }
+    }
+
+    private fun syncDynamicMixQueue(serverTracks: List<QueueTrackDto>, restart: Boolean) {
+        val c = controller ?: return
+        val serverUrl = queueServerUrl ?: return
+        if (restart) {
+            val items = serverTracks.filter { it.hasFile }.map { mediaItem(serverUrl, it) }
+            if (items.isEmpty()) return
+            c.setMediaItems(items, 0, 0L)
+            c.prepare()
+            c.play()
+            return
+        }
+        val currentIds = (0 until c.mediaItemCount)
+            .mapNotNull { c.getMediaItemAt(it).mediaId.toIntOrNull() }
+        val plan = DynamicMixSync.plan(currentIds, serverTracks)
+        for (id in plan.removeIds) {
+            val index = (0 until c.mediaItemCount)
+                .firstOrNull { c.getMediaItemAt(it).mediaId == id.toString() } ?: continue
+            // Never yank the item being listened to, even if the server dropped it.
+            if (index == c.currentMediaItemIndex) continue
+            c.removeMediaItem(index)
+        }
+        c.addMediaItems(plan.append.filter { it.hasFile }.map { mediaItem(serverUrl, it) })
     }
 
     /**
@@ -153,11 +237,67 @@ object PlayerConnection {
         val c = controller ?: return
         val playable = album.tracks.filter { it.hasFile }
         if (playable.isEmpty()) return
+        dynamicMix = false
+        queueServerUrl = serverUrl
+        _queueSource.value = QueueSource.Album(album.id)
         val startIndex = playable.indexOfFirst { it.id == startTrackId }.coerceAtLeast(0)
         val items = playable.map { track -> mediaItem(serverUrl, album, track) }
         c.setMediaItems(items, startIndex, 0L)
         c.prepare()
         c.play()
+    }
+
+    /**
+     * Queues queue-shaped tracks (playlists and smart playlists) — only those
+     * with an audio file — and starts playback at [startIndex] (an index within
+     * the playable tracks). [dynamicMix] turns on the server-backed rotation of
+     * the persistent mix.
+     */
+    fun playQueue(
+        serverUrl: String,
+        tracks: List<QueueTrackDto>,
+        startIndex: Int = 0,
+        dynamicMix: Boolean = false,
+        source: QueueSource? = null,
+    ) {
+        val c = controller ?: return
+        val playable = tracks.filter { it.hasFile }
+        if (playable.isEmpty()) return
+        this.dynamicMix = dynamicMix
+        queueServerUrl = serverUrl
+        _queueSource.value = source
+        val items = playable.map { mediaItem(serverUrl, it) }
+        c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), 0L)
+        c.prepare()
+        c.play()
+    }
+
+    /** Optimistic favorite flip of the current track, persisted server-side. */
+    fun toggleFavorite() {
+        val c = controller ?: return
+        val item = c.currentMediaItem ?: return
+        val trackId = item.mediaId.toIntOrNull() ?: return
+        val next = !(item.mediaMetadata.extras?.getBoolean(EXTRA_IS_FAVORITE) ?: false)
+        c.replaceMediaItem(c.currentMediaItemIndex, withFavorite(item, next))
+        scope.launch {
+            runCatching { ServiceLocator.playlistRepository.setFavorite(trackId, next) }
+                .onFailure {
+                    // Server refused: put the flag back as it was, wherever the item is now.
+                    val cc = controller ?: return@launch
+                    val idx = (0 until cc.mediaItemCount)
+                        .firstOrNull { cc.getMediaItemAt(it).mediaId == item.mediaId }
+                        ?: return@launch
+                    cc.replaceMediaItem(idx, withFavorite(cc.getMediaItemAt(idx), !next))
+                }
+        }
+    }
+
+    private fun withFavorite(item: MediaItem, favorite: Boolean): MediaItem {
+        val extras = Bundle(item.mediaMetadata.extras ?: Bundle.EMPTY)
+            .apply { putBoolean(EXTRA_IS_FAVORITE, favorite) }
+        return item.buildUpon()
+            .setMediaMetadata(item.mediaMetadata.buildUpon().setExtras(extras).build())
+            .build()
     }
 
     fun togglePlayPause() {
@@ -193,18 +333,49 @@ object PlayerConnection {
         }
     }
 
-    private fun mediaItem(serverUrl: String, album: AlbumDto, track: TrackDto): MediaItem {
-        val streamUrl = serverUrl.trimEnd('/') + "/api/player/tracks/${track.id}/stream"
+    private fun mediaItem(serverUrl: String, album: AlbumDto, track: TrackDto): MediaItem =
+        mediaItem(
+            serverUrl = serverUrl,
+            trackId = track.id,
+            title = track.title,
+            artistName = album.artist.name,
+            albumTitle = album.title,
+            coverUrl = album.coverUrl,
+            isFavorite = track.isFavorite,
+        )
+
+    private fun mediaItem(serverUrl: String, track: QueueTrackDto): MediaItem =
+        mediaItem(
+            serverUrl = serverUrl,
+            trackId = track.id,
+            title = track.title,
+            artistName = track.artistName,
+            albumTitle = track.albumTitle,
+            coverUrl = track.coverUrl,
+            isFavorite = track.isFavorite,
+        )
+
+    private fun mediaItem(
+        serverUrl: String,
+        trackId: Int,
+        title: String,
+        artistName: String,
+        albumTitle: String,
+        coverUrl: String?,
+        isFavorite: Boolean,
+    ): MediaItem {
+        val streamUrl = serverUrl.trimEnd('/') + "/api/player/tracks/$trackId/stream"
         val metadata = MediaMetadata.Builder()
-            .setTitle(track.title)
-            .setArtist(album.artist.name)
-            .setAlbumTitle(album.title)
+            .setTitle(title)
+            .setArtist(artistName)
+            .setAlbumTitle(albumTitle)
+            .setExtras(Bundle().apply { putBoolean(EXTRA_IS_FAVORITE, isFavorite) })
             .apply {
-                resolveCover(serverUrl, album.coverUrl)?.let { setArtworkUri(Uri.parse(it)) }
+                resolveCover(serverUrl, coverUrl)?.let { setArtworkUri(Uri.parse(it)) }
             }
             .build()
         return MediaItem.Builder()
-            .setMediaId(track.id.toString())
+            .setMediaId(trackId.toString())
             .setUri(streamUrl)
             .setMediaMetadata(metadata)
             .build()

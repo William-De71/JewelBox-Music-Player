@@ -16,6 +16,7 @@ kover {
                 classes(
                     "com.jewelbox.player.data.*",
                     "com.jewelbox.player.playback.ScrobbleTracker*",
+                    "com.jewelbox.player.playback.DynamicMixSync*",
                 )
             }
             excludes {
@@ -24,6 +25,7 @@ kover {
                 classes(
                     "com.jewelbox.player.data.ServerPrefs*",
                     "com.jewelbox.player.data.AlbumRepository*",
+                    "com.jewelbox.player.data.PlaylistRepository*",
                 )
             }
         }

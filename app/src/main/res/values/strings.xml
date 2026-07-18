@@ -44,6 +44,47 @@
     <string name="repeat_all">Répéter tout</string>
     <string name="repeat_one">Répéter la piste</string>
 
+    <!-- Playlists -->
+    <string name="playlists_title">Playlists</string>
+    <string name="smart_playlists_header">Listes intelligentes</string>
+    <string name="my_playlists_header">Mes playlists</string>
+    <string name="smart_newest">Ajouts récents</string>
+    <string name="smart_ever_played">Déjà écoutées</string>
+    <string name="smart_never_played">Jamais écoutées</string>
+    <string name="smart_last_played">Écoutées récemment</string>
+    <string name="smart_most_played">Les plus écoutées</string>
+    <string name="smart_favourites">Favoris</string>
+    <string name="smart_all_tracks">Toutes les pistes</string>
+    <string name="smart_dynamic_mix">Mix dynamique</string>
+    <string name="playlist_create">Nouvelle playlist</string>
+    <string name="playlist_create_title">Créer une playlist</string>
+    <string name="playlist_name_label">Nom</string>
+    <string name="playlist_name_placeholder">ex : Mes favoris</string>
+    <string name="playlist_rename">Renommer</string>
+    <string name="playlist_rename_title">Renommer la playlist</string>
+    <string name="playlist_delete">Supprimer</string>
+    <string name="playlist_confirm_delete">Supprimer la playlist « %1$s » ?</string>
+    <string name="playlist_created">Playlist créée</string>
+    <string name="playlist_renamed">Playlist renommée</string>
+    <string name="playlist_deleted">Playlist supprimée</string>
+    <string name="track_count">%1$d piste(s)</string>
+    <string name="playlist_listen">Écouter</string>
+    <string name="playlist_empty_list">Aucune playlist</string>
+    <string name="playlist_empty_subtitle">Créez votre première playlist pour organiser vos écoutes</string>
+    <string name="playlist_no_playable_tracks">Aucune piste jouable dans cette playlist</string>
+    <string name="playlist_updated_at">Modifiée le %1$s</string>
+    <string name="move_up">Monter</string>
+    <string name="move_down">Descendre</string>
+    <string name="remove_from_playlist">Retirer de la playlist</string>
+    <string name="track_removed">Piste retirée</string>
+    <string name="add_to_playlist">Ajouter à une playlist</string>
+    <string name="add_album_to_playlist">Ajouter l\'album à une playlist</string>
+    <string name="tracks_added">%1$d piste(s) ajoutée(s)</string>
+    <string name="create_and_add">Créer et ajouter</string>
+    <string name="cancel">Annuler</string>
+    <string name="unfavorite">Retirer des favoris</string>
+    <string name="new_mix">Relancer un mix complet</string>
+
     <!-- Réglages -->
     <string name="server_address_label">Adresse du serveur</string>
     <string name="server_address_hint">http://192.168.1.x:3001</string>

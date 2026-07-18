@@ -18,8 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,11 +30,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -51,17 +58,28 @@ import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.playback.PlayerConnection
-import com.jewelbox.player.ui.player.MiniPlayer
+import com.jewelbox.player.ui.playlists.noticeText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumDetailScreen(
     albumId: Int,
     onBack: () -> Unit,
-    onOpenPlayer: () -> Unit,
+    bottomBar: @Composable () -> Unit,
     vm: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.Factory(albumId)),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val sheet by vm.sheet.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    notice?.let { n ->
+        val text = noticeText(n)
+        LaunchedEffect(n) {
+            snackbarHostState.showSnackbar(text)
+            vm.consumeNotice()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -75,9 +93,20 @@ fun AlbumDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
+                actions = {
+                    if (state is AlbumDetailUiState.Loaded) {
+                        IconButton(onClick = { vm.openAddToPlaylist() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.PlaylistAdd,
+                                contentDescription = stringResource(R.string.add_album_to_playlist),
+                            )
+                        }
+                    }
+                },
             )
         },
-        bottomBar = { MiniPlayer(onOpen = onOpenPlayer) },
+        bottomBar = bottomBar,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -103,14 +132,34 @@ fun AlbumDetailScreen(
                     Button(onClick = vm::load) { Text(stringResource(R.string.retry)) }
                 }
 
-                is AlbumDetailUiState.Loaded -> AlbumDetailContent(s.album, s.serverUrl)
+                is AlbumDetailUiState.Loaded -> AlbumDetailContent(
+                    album = s.album,
+                    serverUrl = s.serverUrl,
+                    onToggleFavorite = vm::toggleFavorite,
+                    onAddTrackToPlaylist = { vm.openAddToPlaylist(it) },
+                )
             }
+        }
+    }
+
+    sheet?.let { current ->
+        ModalBottomSheet(onDismissRequest = vm::dismissAddToPlaylist) {
+            AddToPlaylistSheetContent(
+                sheet = current,
+                onPick = vm::addToPlaylist,
+                onCreateAndAdd = vm::createPlaylistAndAdd,
+            )
         }
     }
 }
 
 @Composable
-private fun AlbumDetailContent(album: AlbumDto, serverUrl: String) {
+private fun AlbumDetailContent(
+    album: AlbumDto,
+    serverUrl: String,
+    onToggleFavorite: (Int) -> Unit,
+    onAddTrackToPlaylist: (Int) -> Unit,
+) {
     val playback by PlayerConnection.state.collectAsStateWithLifecycle()
 
     LazyColumn(
@@ -132,6 +181,8 @@ private fun AlbumDetailContent(album: AlbumDto, serverUrl: String) {
                     track = track,
                     isCurrent = playback.currentTrackId == track.id,
                     onPlay = { PlayerConnection.playAlbum(serverUrl, album, track.id) },
+                    onToggleFavorite = { onToggleFavorite(track.id) },
+                    onAddToPlaylist = { onAddTrackToPlaylist(track.id) },
                 )
                 HorizontalDivider()
             }
@@ -214,6 +265,8 @@ private fun TrackRow(
     track: TrackDto,
     isCurrent: Boolean,
     onPlay: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onAddToPlaylist: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -223,7 +276,7 @@ private fun TrackRow(
             .clickable(enabled = track.hasFile, onClick = onPlay)
             // Dim the whole row when there is no audio file, like a disabled item.
             .alpha(if (track.hasFile) 1f else 0.38f)
-            .padding(vertical = 12.dp),
+            .padding(vertical = 4.dp),
     ) {
         if (isCurrent) {
             Icon(
@@ -250,21 +303,30 @@ private fun TrackRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (track.isFavorite) {
-            Icon(
-                imageVector = Icons.Filled.Favorite,
-                contentDescription = stringResource(R.string.favorite),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .size(18.dp),
-            )
-        }
         track.duration?.takeIf { it.isNotBlank() }?.let {
             Text(
                 text = it,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onToggleFavorite) {
+            Icon(
+                imageVector = if (track.isFavorite) Icons.Filled.Favorite
+                              else Icons.Filled.FavoriteBorder,
+                contentDescription = if (track.isFavorite) stringResource(R.string.unfavorite)
+                                     else stringResource(R.string.favorite),
+                tint = if (track.isFavorite) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        IconButton(onClick = onAddToPlaylist) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                contentDescription = stringResource(R.string.add_to_playlist),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
             )
         }
     }
