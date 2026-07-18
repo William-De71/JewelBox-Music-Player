@@ -9,6 +9,10 @@ jobs:
   test:
     name: Unit tests & coverage (95%)
     runs-on: ubuntu-latest
+    # Needed by the sticky coverage comment below.
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: ⬇️ Checkout code
@@ -27,7 +31,39 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest --no-configuration-cache
 
       - name: 📊 Coverage gate (min 95% on logic)
-        run: ./gradlew :app:koverVerifyDebug :app:koverHtmlReportDebug --no-configuration-cache
+        run: ./gradlew :app:koverVerifyDebug :app:koverHtmlReportDebug :app:koverXmlReportDebug --no-configuration-cache
+
+      # The coverage table, readable without downloading anything: on the run's
+      # summary page, and as a sticky comment kept up to date on the PR.
+      - name: 📝 Coverage summary (run page)
+        if: always()
+        run: |
+          python3 .github/scripts/kover_summary.py app/build/reports/kover/reportDebug.xml \
+            | tee coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 💬 Coverage comment (PR, sticky)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- kover-coverage -->';
+            let table;
+            try {
+              table = fs.readFileSync('coverage-summary.md', 'utf8');
+            } catch {
+              table = '⚠️ Rapport de couverture indisponible (les tests ont probablement échoué avant).';
+            }
+            const body = `${marker}\n${table}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            }
 
       # Test and coverage reports, downloadable from the run page — also on failure,
       # which is precisely when they matter.
