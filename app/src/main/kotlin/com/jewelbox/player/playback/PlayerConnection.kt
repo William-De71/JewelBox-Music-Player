@@ -12,6 +12,8 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.jewelbox.player.ServiceLocator
+import com.jewelbox.player.data.SavedQueue
+import com.jewelbox.player.data.SavedTrack
 import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.TrackDto
@@ -71,6 +73,11 @@ object PlayerConnection {
     /** MediaMetadata extras key carrying the track's favorite flag through Media3. */
     private const val EXTRA_IS_FAVORITE = "jewelbox.is_favorite"
 
+    /** Ticker runs every second; checkpoint the resume position every 5th one. */
+    private const val POSITION_SAVE_INTERVAL_TICKS = 5
+
+    private var ticksSinceQueueSave = 0
+
     private var controller: MediaController? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -112,6 +119,7 @@ object PlayerConnection {
                         onTrackEnded(endedId, queueExhausted = false)
                     }
                     onTrackStarted(mediaItem)
+                    saveQueue()
                 }
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     // The very last item of the queue finished (no AUTO transition then).
@@ -119,8 +127,15 @@ object PlayerConnection {
                         lastTrackId?.let { onTrackEnded(it, queueExhausted = true) }
                     }
                 }
+
+                // Pausing is the usual prelude to leaving the app: checkpoint
+                // right away rather than waiting for the next tick.
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (!isPlaying) saveQueue()
+                }
             })
             syncState(c)
+            restoreSavedQueue()
             startTicker()
         }, MoreExecutors.directExecutor())
     }
@@ -150,6 +165,84 @@ object PlayerConnection {
     // Id of the item currently loaded in the player, so a transition can name
     // the track that just ended (the player has already moved on at that point).
     private var lastTrackId: Int? = null
+
+    // Display data of every track queued this session, keyed by track id: what
+    // MediaItem can't give back when serializing the queue (raw cover URL).
+    private val savedTracks = mutableMapOf<Int, SavedTrack>()
+
+    // True while restoring: the queue must not be saved back over itself, and
+    // the restored source must not be re-reported as a fresh play.
+    private var restoring = false
+
+    /**
+     * Reloads the queue the user left behind, paused at the exact position.
+     * Nothing is started: the user presses play. Called once the controller is
+     * connected and only when the player is genuinely empty, so a queue started
+     * before the service finished binding always wins.
+     */
+    private fun restoreSavedQueue() {
+        scope.launch {
+            val saved = ServiceLocator.playbackStateStore.load() ?: return@launch
+            val c = controller ?: return@launch
+            if (c.mediaItemCount > 0 || saved.tracks.isEmpty()) return@launch
+
+            restoring = true
+            try {
+                saved.tracks.forEach { savedTracks[it.id] = it }
+                dynamicMix = saved.dynamicMix
+                queueServerUrl = saved.serverUrl
+                _queueSource.value = when (saved.sourceType) {
+                    "album" -> saved.sourceId?.toIntOrNull()?.let(QueueSource::Album)
+                    "playlist" -> saved.sourceId?.toIntOrNull()?.let(QueueSource::Playlist)
+                    "smart" -> saved.sourceId?.let(QueueSource::Smart)
+                    else -> null
+                }
+                val items = saved.tracks.map { mediaItem(saved.serverUrl, it) }
+                c.setMediaItems(items, saved.index.coerceIn(0, items.lastIndex), saved.positionMs)
+                // prepare() without play(): buffered and ready, silent until asked.
+                c.prepare()
+            } finally {
+                restoring = false
+            }
+        }
+    }
+
+    /** Snapshots the queue and where we are in it, for the next app start. */
+    private fun saveQueue() {
+        if (restoring) return
+        val c = controller ?: return
+        val serverUrl = queueServerUrl ?: return
+        val tracks = (0 until c.mediaItemCount)
+            .mapNotNull { c.getMediaItemAt(it).mediaId.toIntOrNull() }
+            .mapNotNull { savedTracks[it] }
+        val source = _queueSource.value
+        val snapshot = SavedQueue(
+            serverUrl = serverUrl,
+            tracks = tracks,
+            index = c.currentMediaItemIndex.coerceAtLeast(0),
+            positionMs = c.currentPosition.coerceAtLeast(0L),
+            sourceType = when (source) {
+                is QueueSource.Album -> "album"
+                is QueueSource.Playlist -> "playlist"
+                is QueueSource.Smart -> "smart"
+                null -> null
+            },
+            sourceId = when (source) {
+                is QueueSource.Album -> source.albumId.toString()
+                is QueueSource.Playlist -> source.playlistId.toString()
+                is QueueSource.Smart -> source.key
+                null -> null
+            },
+            dynamicMix = dynamicMix,
+        )
+        scope.launch {
+            if (tracks.isEmpty()) {
+                ServiceLocator.playbackStateStore.clear()
+            } else {
+                ServiceLocator.playbackStateStore.save(snapshot)
+            }
+        }
+    }
 
     /** New track (or replay): reset scrobble bookkeeping and tell Last.fm "now playing". */
     private fun onTrackStarted(item: MediaItem?) {
@@ -239,6 +332,13 @@ object PlayerConnection {
         val positionMs = c.currentPosition
         _position.value = PlaybackPosition(positionMs, durationMs)
 
+        // Checkpoint the resume position while playing, rarely enough not to
+        // hammer DataStore: losing at most 5s of progress is imperceptible.
+        if (c.isPlaying && ++ticksSinceQueueSave >= POSITION_SAVE_INTERVAL_TICKS) {
+            ticksSinceQueueSave = 0
+            saveQueue()
+        }
+
         val due = scrobbleTracker.onTick(positionMs / 1000.0, durationMs / 1000.0) ?: return
         scope.launch {
             // Local play counting first, independent of Last.fm availability.
@@ -258,11 +358,13 @@ object PlayerConnection {
         dynamicMix = false
         queueServerUrl = serverUrl
         _queueSource.value = QueueSource.Album(album.id)
+        reportPlayStarted(QueueSource.Album(album.id))
         val startIndex = playable.indexOfFirst { it.id == startTrackId }.coerceAtLeast(0)
         val items = playable.map { track -> mediaItem(serverUrl, album, track) }
         c.setMediaItems(items, startIndex, 0L)
         c.prepare()
         c.play()
+        saveQueue()
     }
 
     /**
@@ -284,10 +386,24 @@ object PlayerConnection {
         this.dynamicMix = dynamicMix
         queueServerUrl = serverUrl
         _queueSource.value = source
+        reportPlayStarted(source)
         val items = playable.map { mediaItem(serverUrl, it) }
         c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), 0L)
         c.prepare()
         c.play()
+        saveQueue()
+    }
+
+    // Feeds the home screen's "recently played" section. Fire-and-forget: an
+    // old server (404) or an unreachable one must never disturb playback.
+    // Smart queues are deliberately not history items.
+    private fun reportPlayStarted(source: QueueSource?) {
+        val (type, id) = when (source) {
+            is QueueSource.Album -> "album" to source.albumId
+            is QueueSource.Playlist -> "playlist" to source.playlistId
+            else -> return
+        }
+        scope.launch { runCatching { ServiceLocator.homeRepository.reportPlay(type, id) } }
     }
 
     /** Optimistic favorite flip of the current track, persisted server-side. */
@@ -373,6 +489,17 @@ object PlayerConnection {
             isFavorite = track.isFavorite,
         )
 
+    private fun mediaItem(serverUrl: String, track: SavedTrack): MediaItem =
+        mediaItem(
+            serverUrl = serverUrl,
+            trackId = track.id,
+            title = track.title,
+            artistName = track.artistName,
+            albumTitle = track.albumTitle,
+            coverUrl = track.coverUrl,
+            isFavorite = track.isFavorite,
+        )
+
     private fun mediaItem(
         serverUrl: String,
         trackId: Int,
@@ -382,6 +509,9 @@ object PlayerConnection {
         coverUrl: String?,
         isFavorite: Boolean,
     ): MediaItem {
+        // Remembered so the queue can be serialized for the next app start:
+        // MediaItem alone doesn't carry back the raw (relative) cover URL.
+        savedTracks[trackId] = SavedTrack(trackId, title, artistName, albumTitle, coverUrl, isFavorite)
         val streamUrl = serverUrl.trimEnd('/') + "/api/player/tracks/$trackId/stream"
         val metadata = MediaMetadata.Builder()
             .setTitle(title)

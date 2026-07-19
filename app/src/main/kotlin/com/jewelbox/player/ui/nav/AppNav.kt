@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jewelbox.player.ui.albumdetail.AlbumDetailScreen
 import com.jewelbox.player.ui.albums.AlbumListScreen
+import com.jewelbox.player.ui.home.HomeScreen
 import com.jewelbox.player.ui.player.NowPlayingScreen
 import com.jewelbox.player.ui.playlists.PlaylistDetailScreen
 import com.jewelbox.player.ui.playlists.PlaylistsScreen
@@ -17,6 +18,7 @@ import com.jewelbox.player.ui.search.SearchScreen
 import com.jewelbox.player.ui.settings.SettingsScreen
 
 private object Routes {
+    const val HOME = "home"
     const val ALBUMS = "albums"
     const val SEARCH = "search"
     const val SETTINGS = "settings"
@@ -34,18 +36,21 @@ private object Routes {
 fun AppNav() {
     val nav = rememberNavController()
 
-    // Standard bottom-bar pattern: one back-stack entry per tab, whose state is
-    // saved and restored when switching back and forth.
-    fun switchTab(tab: RootTab) = nav.navigate(
-        when (tab) {
+    // Pressing a tab always lands on that tab's root screen, never on a detail
+    // it was left on: everything above the start destination is popped, and the
+    // saved stacks are deliberately not restored (restoreState would resurface
+    // an open album or playlist). Detail screens stay reachable via Back.
+    fun switchTab(tab: RootTab) {
+        val route = when (tab) {
+            RootTab.HOME -> Routes.HOME
             RootTab.LIBRARY -> Routes.ALBUMS
             RootTab.SEARCH -> Routes.SEARCH
             RootTab.PLAYLISTS -> Routes.PLAYLISTS
-        },
-    ) {
-        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
+        }
+        nav.navigate(route) {
+            popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
+            launchSingleTop = true
+        }
     }
     val openPlayer = { nav.navigate(Routes.NOW_PLAYING) }
 
@@ -59,7 +64,15 @@ fun AppNav() {
         )
     }
 
-    NavHost(navController = nav, startDestination = Routes.ALBUMS) {
+    NavHost(navController = nav, startDestination = Routes.HOME) {
+        composable(Routes.HOME) {
+            HomeScreen(
+                onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+                onOpenAlbum = { id -> nav.navigate(Routes.albumDetail(id)) },
+                onOpenPlaylist = { id -> nav.navigate(Routes.playlistDetail(id)) },
+                bottomBar = { bottomBar(RootTab.HOME) },
+            )
+        }
         composable(Routes.ALBUMS) {
             AlbumListScreen(
                 onOpenSettings = { nav.navigate(Routes.SETTINGS) },

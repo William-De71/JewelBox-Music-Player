@@ -106,6 +106,19 @@ interface JewelBoxApi {
     @GET("api/player/search")
     suspend fun search(@Query("q") query: String): SearchResultsDto
 
+    // ── Accueil ──────────────────────────────────────────────────────────────
+
+    /**
+     * Home feed: the 8 last-played albums/playlists plus 12 suggested albums.
+     * Requires server >= 1.9 (404 or SPA HTML on older servers).
+     */
+    @GET("api/player/home")
+    suspend fun home(): HomeDto
+
+    /** Reports that playback started from an album or playlist (server >= 1.9). */
+    @POST("api/player/history")
+    suspend fun reportPlay(@Body body: PlayHistoryBody)
+
     // ── Favoris ──────────────────────────────────────────────────────────────
 
     @PATCH("api/player/tracks/{id}/favorite")

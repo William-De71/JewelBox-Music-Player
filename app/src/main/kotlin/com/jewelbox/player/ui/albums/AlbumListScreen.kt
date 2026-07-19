@@ -185,11 +185,12 @@ private fun AlbumGrid(
     onToggleArtist: (String) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 140.dp),
+        // Four per row, matching the home screen's suggestion grid.
+        columns = GridCells.Fixed(4),
         contentPadding = PaddingValues(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         // Tighter vertical rhythm when grouped so a collapsed list of headers stays compact.
-        verticalArrangement = Arrangement.spacedBy(if (state.groupByArtist) 4.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (state.groupByArtist) 4.dp else 8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
         if (state.groupByArtist) {

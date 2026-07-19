@@ -2,6 +2,8 @@ package com.jewelbox.player
 
 import android.app.Application
 import com.jewelbox.player.data.AlbumRepository
+import com.jewelbox.player.data.HomeRepository
+import com.jewelbox.player.data.PlaybackStateStore
 import com.jewelbox.player.data.PlaylistRepository
 import com.jewelbox.player.data.ServerPrefs
 import com.jewelbox.player.playback.PlayerConnection
@@ -29,10 +31,16 @@ object ServiceLocator {
         private set
     lateinit var playlistRepository: PlaylistRepository
         private set
+    lateinit var homeRepository: HomeRepository
+        private set
+    lateinit var playbackStateStore: PlaybackStateStore
+        private set
 
     fun init(app: Application) {
         serverPrefs = ServerPrefs(app.applicationContext)
         albumRepository = AlbumRepository(serverPrefs)
         playlistRepository = PlaylistRepository(serverPrefs)
+        homeRepository = HomeRepository(serverPrefs)
+        playbackStateStore = PlaybackStateStore(app.applicationContext)
     }
 }
