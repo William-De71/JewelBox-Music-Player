@@ -20,10 +20,9 @@ kover {
                 )
             }
             excludes {
-                // Not unit-testable on the JVM: DataStore needs a Context, and the
-                // repository is a thin pass-through over Retrofit.
+                // Thin pass-throughs over Retrofit whose endpoints are covered
+                // against a real HTTP server in the *ApiTest suites.
                 classes(
-                    "com.jewelbox.player.data.ServerPrefs*",
                     "com.jewelbox.player.data.AlbumRepository*",
                     "com.jewelbox.player.data.PlaylistRepository*",
                 )
@@ -100,6 +99,13 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            // Required by Robolectric to inflate the app's resources.
+            isIncludeAndroidResources = true
+        }
+    }
+
     // Kotlin sources live under src/main/kotlin.
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")
 }
@@ -135,4 +141,9 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
+    // Robolectric provides the Android framework on the JVM, so the DataStore
+    // classes (which need a Context) can be unit-tested like everything else.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
