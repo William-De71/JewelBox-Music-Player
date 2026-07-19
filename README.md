@@ -20,6 +20,13 @@ un dépôt séparé (`jewelbox-music-library`).
   Last.fm est stockée côté serveur et partagée avec elle (rien à configurer dans l'app).
 - **Réglages** : adresse du serveur (`http://ip:3001`), bouton *Tester* (`GET /api/health`),
   persistée via DataStore.
+- **Découverte du serveur (mDNS)** : *Réglages → Découverte du réseau* liste les serveurs
+  JewelBox du sous-réseau (`_jewelbox._tcp`, serveur ≥ 1.12). La sélection valide via
+  `GET /api/server-info` puis enregistre l'URL **et** le `server_id` (UUID stable du
+  serveur) — le badge *Votre serveur* reconnaît ainsi votre serveur même après un
+  changement d'adresse DHCP. Limite mDNS : le multicast ne traverse pas les
+  routeurs/VLANs (prévoir un réflecteur mDNS sur le routeur, sinon saisie manuelle —
+  qui capture aussi le `server_id` en arrière-plan).
 - Tous les textes UI sont dans `app/src/main/res/values/strings.xml` (français par
   défaut) — une traduction = un dossier `values-<lang>/` avec les mêmes clés.
 
@@ -36,8 +43,9 @@ app/src/main/kotlin/com/jewelbox/player/
 ├── MainActivity.kt         Activité unique, hôte Compose
 ├── data/                   Couche données
 │   ├── net/                Retrofit : ApiClient, JewelBoxApi (endpoints), Dtos
+│   │                       + découverte mDNS : ServerDiscovery (NsdManager), DiscoveredServer
 │   ├── AlbumRepository.kt  Façade API (albums, santé, scrobble…)
-│   ├── ServerPrefs.kt      DataStore : URL du serveur
+│   ├── ServerPrefs.kt      DataStore : URL du serveur + server_id (identité mDNS)
 │   └── CoverUrl.kt         Résolution des pochettes (absolue vs /covers/…)
 ├── playback/               Lecture
 │   ├── PlaybackService.kt  MediaSessionService qui héberge ExoPlayer

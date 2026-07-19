@@ -113,4 +113,15 @@
     <string name="unexpected_response">Réponse inattendue du serveur</string>
     <string name="connection_failed">Connexion impossible</string>
     <string name="address_saved">Adresse enregistrée</string>
+
+    <!-- Découverte mDNS -->
+    <string name="discovery_title">Découverte du réseau</string>
+    <string name="discovery_scan">Rechercher sur le réseau</string>
+    <string name="discovery_stop">Arrêter la recherche</string>
+    <string name="discovery_scanning">Recherche de serveurs JewelBox…</string>
+    <string name="discovery_empty">Aucun serveur trouvé pour l\'instant.</string>
+    <string name="discovery_your_server">Votre serveur</string>
+    <string name="discovery_failed">La découverte réseau a échoué. Vérifiez que le Wi-Fi est activé.</string>
+    <string name="discovery_not_jewelbox">Ce service ne répond pas comme un serveur JewelBox.</string>
+    <string name="discovery_version">version %1$s</string>
 </resources>

@@ -25,6 +25,9 @@ kover {
                 classes(
                     "com.jewelbox.player.data.AlbumRepository*",
                     "com.jewelbox.player.data.PlaylistRepository*",
+                    // NsdManager glue: needs a device and a real network. The
+                    // decidable parts (DiscoveredServer.kt) are covered.
+                    "com.jewelbox.player.data.net.ServerDiscovery*",
                 )
             }
         }
