@@ -101,6 +101,9 @@ data class PlaylistSummaryDto(
     @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("track_count") val trackCount: Int = 0,
     @SerialName("total_duration_seconds") val totalDurationSeconds: Int = 0,
+    // Borrowed from the first track's album; only the home feed sets it,
+    // GET /api/playlists simply omits the field.
+    @SerialName("cover_url") val coverUrl: String? = null,
 )
 
 @Serializable
@@ -180,6 +183,29 @@ data class DynamicMixPlayedDto(
 data class SearchResultsDto(
     val albums: List<AlbumDto> = emptyList(),
     val tracks: List<QueueTrackDto> = emptyList(),
+)
+
+/** Body of POST /api/player/history — item_type is "album" or "playlist". */
+@Serializable
+data class PlayHistoryBody(
+    @SerialName("item_type") val itemType: String,
+    @SerialName("item_id") val itemId: Int,
+)
+
+/** Entry of the home feed's recent section: exactly one of album/playlist is set. */
+@Serializable
+data class HomeRecentItemDto(
+    @SerialName("item_type") val itemType: String = "",
+    @SerialName("played_at") val playedAt: String? = null,
+    val album: AlbumDto? = null,
+    val playlist: PlaylistSummaryDto? = null,
+)
+
+/** Response of GET /api/player/home (server >= 1.9). */
+@Serializable
+data class HomeDto(
+    val recent: List<HomeRecentItemDto> = emptyList(),
+    val suggestions: List<AlbumDto> = emptyList(),
 )
 
 @Serializable
