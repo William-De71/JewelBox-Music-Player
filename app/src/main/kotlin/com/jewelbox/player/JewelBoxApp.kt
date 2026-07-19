@@ -1,11 +1,14 @@
 package com.jewelbox.player
 
 import android.app.Application
+import android.content.Context
+import android.net.nsd.NsdManager
 import com.jewelbox.player.data.AlbumRepository
 import com.jewelbox.player.data.HomeRepository
 import com.jewelbox.player.data.PlaybackStateStore
 import com.jewelbox.player.data.PlaylistRepository
 import com.jewelbox.player.data.ServerPrefs
+import com.jewelbox.player.data.net.ServerDiscovery
 import com.jewelbox.player.playback.PlayerConnection
 
 /**
@@ -35,6 +38,8 @@ object ServiceLocator {
         private set
     lateinit var playbackStateStore: PlaybackStateStore
         private set
+    lateinit var serverDiscovery: ServerDiscovery
+        private set
 
     fun init(app: Application) {
         serverPrefs = ServerPrefs(app.applicationContext)
@@ -42,5 +47,8 @@ object ServiceLocator {
         playlistRepository = PlaylistRepository(serverPrefs)
         homeRepository = HomeRepository(serverPrefs)
         playbackStateStore = PlaybackStateStore(app.applicationContext)
+        serverDiscovery = ServerDiscovery(
+            app.getSystemService(Context.NSD_SERVICE) as NsdManager,
+        )
     }
 }

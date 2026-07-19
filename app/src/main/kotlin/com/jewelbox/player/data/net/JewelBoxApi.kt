@@ -18,6 +18,10 @@ interface JewelBoxApi {
     @GET("api/health")
     suspend fun health(): HealthDto
 
+    /** Server identity for mDNS discovery validation (server >= 1.12; 404 before). */
+    @GET("api/server-info")
+    suspend fun serverInfo(): ServerInfoDto
+
     // Sorted by artist then year ascending: the server adds "a.year ASC" as the
     // secondary key whenever sort=artist, so this one call gives artist → date order.
     // wanted=false restricts to the owned collection, excluding the wishlist

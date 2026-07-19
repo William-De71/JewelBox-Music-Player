@@ -15,6 +15,23 @@ data class HealthDto(
     val status: String = "",
 )
 
+/**
+ * GET /api/server-info — the server's identity card (server >= 1.12).
+ * Fetched right after an mDNS resolution to confirm the service really is a
+ * JewelBox (app == "jewelbox") and not something else squatting the port.
+ * server_id is a UUID minted on the server's first boot: it survives DHCP
+ * address changes, which is what lets the app recognize "its" server again.
+ */
+@Serializable
+data class ServerInfoDto(
+    val app: String = "",
+    val name: String = "",
+    val version: String = "",
+    @SerialName("server_id") val serverId: String = "",
+    val api: String = "",
+    val collection: String? = null,
+)
+
 /** Body of POST /api/lastfm/nowplaying — the server enriches from its DB and calls Last.fm. */
 @Serializable
 data class NowPlayingBody(
