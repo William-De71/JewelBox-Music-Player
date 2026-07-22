@@ -8,6 +8,7 @@
     <!-- Accueil -->
     <string name="home_title">Accueil</string>
     <string name="home_recent_header">Reprendre l\'écoute</string>
+    <string name="home_latest_header">Derniers ajouts</string>
     <string name="home_suggestions_header">Suggestions d\'écoute</string>
     <string name="home_empty_recent">Vos dernières écoutes apparaîtront ici.</string>
     <string name="home_server_too_old">Accueil indisponible : mettez à jour le serveur JewelBox (version 1.9 ou plus).</string>

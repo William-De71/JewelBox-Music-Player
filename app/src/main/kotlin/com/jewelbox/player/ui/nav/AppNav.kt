@@ -70,6 +70,7 @@ fun AppNav() {
                 onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                 onOpenAlbum = { id -> nav.navigate(Routes.albumDetail(id)) },
                 onOpenPlaylist = { id -> nav.navigate(Routes.playlistDetail(id)) },
+                onOpenSmart = { key -> nav.navigate(Routes.smartPlaylist(key)) },
                 bottomBar = { bottomBar(RootTab.HOME) },
             )
         }

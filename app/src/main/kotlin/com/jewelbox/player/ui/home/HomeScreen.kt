@@ -46,7 +46,10 @@ import coil.compose.AsyncImage
 import com.jewelbox.player.R
 import com.jewelbox.player.data.net.HomeRecentItemDto
 import com.jewelbox.player.data.resolveCover
+import com.jewelbox.player.playback.PlayerConnection
 import com.jewelbox.player.ui.albums.AlbumCard
+import com.jewelbox.player.ui.albums.CoverPlayButton
+import com.jewelbox.player.ui.playlists.smartSpec
 
 // Twelve columns divide evenly by 2 (recent tiles, 6 columns each) and by 4
 // (suggestions, 3 columns each), so both sections share one grid and fit on
@@ -61,6 +64,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
+    onOpenSmart: (String) -> Unit,
     bottomBar: @Composable () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
@@ -113,6 +117,7 @@ fun HomeScreen(
                     state = s,
                     onOpenAlbum = onOpenAlbum,
                     onOpenPlaylist = onOpenPlaylist,
+                    onOpenSmart = onOpenSmart,
                 )
             }
         }
@@ -124,12 +129,15 @@ private fun HomeContent(
     state: HomeUiState.Loaded,
     onOpenAlbum: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
+    onOpenSmart: (String) -> Unit,
 ) {
     // One flat grid of 6 columns for the whole screen, so both sections fit on
     // screen without scrolling: recent entries span 3 columns each (2 per row,
     // 4 rows) as compact horizontal tiles, suggestions span 2 (3 per row) as
     // small square covers.
-    val recent = state.recent.filter { it.album != null || it.playlist != null }.take(8)
+    val recent = state.recent
+        .filter { it.album != null || it.playlist != null || it.smart != null }
+        .take(8)
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(COLUMNS),
@@ -152,7 +160,7 @@ private fun HomeContent(
         } else {
             items(
                 items = recent,
-                key = { "recent-${it.itemType}-${it.album?.id ?: it.playlist?.id}" },
+                key = { "recent-${it.itemType}-${it.album?.id ?: it.playlist?.id ?: it.smart?.key}" },
                 span = { GridItemSpan(COLUMNS / 2) },
             ) { entry ->
                 RecentTile(
@@ -160,6 +168,25 @@ private fun HomeContent(
                     serverUrl = state.serverUrl,
                     onOpenAlbum = onOpenAlbum,
                     onOpenPlaylist = onOpenPlaylist,
+                    onOpenSmart = onOpenSmart,
+                )
+            }
+        }
+
+        if (state.latest.isNotEmpty()) {
+            item(key = "latest-header", span = { GridItemSpan(maxLineSpan) }) {
+                SectionHeader(stringResource(R.string.home_latest_header))
+            }
+            items(
+                items = state.latest,
+                key = { "latest-${it.id}" },
+                span = { GridItemSpan(COLUMNS / 4) },
+            ) { album ->
+                AlbumCard(
+                    album = album,
+                    serverUrl = state.serverUrl,
+                    onClick = { onOpenAlbum(album.id) },
+                    onPlay = { PlayerConnection.playAlbumById(state.serverUrl, album.id) },
                 )
             }
         }
@@ -177,6 +204,7 @@ private fun HomeContent(
                     album = album,
                     serverUrl = state.serverUrl,
                     onClick = { onOpenAlbum(album.id) },
+                    onPlay = { PlayerConnection.playAlbumById(state.serverUrl, album.id) },
                 )
             }
         }
@@ -203,13 +231,39 @@ private fun RecentTile(
     serverUrl: String,
     onOpenAlbum: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
+    onOpenSmart: (String) -> Unit,
 ) {
     val album = entry.album
     val playlist = entry.playlist
+    val smart = entry.smart
+    // Smart playlists have no cover of their own: their label and icon are
+    // resolved client-side from the key, like on the Playlists screen.
+    val spec = smart?.let { smartSpec(it.key) }
+
     val onClick = when {
         album != null -> ({ onOpenAlbum(album.id) })
         playlist != null -> ({ onOpenPlaylist(playlist.id) })
+        smart != null -> ({ onOpenSmart(smart.key) })
         else -> return
+    }
+
+    val title = when {
+        album != null -> album.title
+        playlist != null -> playlist.name
+        spec != null -> stringResource(spec.label)
+        else -> smart?.key.orEmpty()
+    }
+    val subtitle = when {
+        album != null -> album.artist.name
+        smart != null -> stringResource(R.string.track_count, smart.trackCount)
+        else -> stringResource(R.string.track_count, playlist?.trackCount ?: 0)
+    }
+    // Play overlay: albums with audio, any playlist, and non-empty smart lists.
+    val onPlay: (() -> Unit)? = when {
+        album != null && album.hasAudio -> ({ PlayerConnection.playAlbumById(serverUrl, album.id) })
+        playlist != null && playlist.trackCount > 0 -> ({ PlayerConnection.playPlaylistById(serverUrl, playlist.id) })
+        smart != null && smart.trackCount > 0 -> ({ PlayerConnection.playSmartByKey(serverUrl, smart.key) })
+        else -> null
     }
 
     Row(
@@ -226,24 +280,34 @@ private fun RecentTile(
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            val cover = resolveCover(serverUrl, album?.coverUrl ?: playlist?.coverUrl)
+            val cover = if (smart != null) null else resolveCover(serverUrl, album?.coverUrl ?: playlist?.coverUrl)
             if (cover != null) {
                 AsyncImage(
                     model = cover,
-                    contentDescription = album?.title ?: playlist?.name,
+                    contentDescription = title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(
-                    imageVector = if (album != null) {
-                        Icons.Filled.Album
-                    } else {
-                        Icons.AutoMirrored.Filled.QueueMusic
+                    imageVector = when {
+                        album != null -> Icons.Filled.Album
+                        spec != null -> spec.icon
+                        else -> Icons.AutoMirrored.Filled.QueueMusic
                     },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.fillMaxSize(0.5f),
+                )
+            }
+
+            if (onPlay != null) {
+                CoverPlayButton(
+                    onClick = onPlay,
+                    size = 24,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(2.dp),
                 )
             }
         }
@@ -254,14 +318,13 @@ private fun RecentTile(
                 .padding(start = 8.dp),
         ) {
             Text(
-                text = album?.title ?: playlist?.name.orEmpty(),
+                text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = album?.artist?.name
-                    ?: stringResource(R.string.track_count, playlist?.trackCount ?: 0),
+                text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

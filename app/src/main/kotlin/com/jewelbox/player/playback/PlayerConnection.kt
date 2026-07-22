@@ -18,12 +18,16 @@ import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
+import com.jewelbox.player.ui.playlists.DYNAMIC_MIX_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -97,6 +101,13 @@ object PlayerConnection {
     // pause/stop on purpose: the list highlight follows the loaded queue.
     private val _queueSource = MutableStateFlow<QueueSource?>(null)
     val queueSource: StateFlow<QueueSource?> = _queueSource.asStateFlow()
+
+    // Emitted after a play has been recorded server-side, so the home screen can
+    // refresh its "recently played" section once the new entry actually exists.
+    // A SharedFlow (not StateFlow) so replaying the same item still fires, and so
+    // the refresh happens after the POST — not racing it like queueSource did.
+    private val _historyUpdated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val historyUpdated: SharedFlow<Unit> = _historyUpdated.asSharedFlow()
 
     // Scrobble rules live in ScrobbleTracker (pure, unit-tested); this object only
     // feeds it player positions and fires the network calls it requests.
@@ -394,16 +405,52 @@ object PlayerConnection {
         saveQueue()
     }
 
-    // Feeds the home screen's "recently played" section. Fire-and-forget: an
-    // old server (404) or an unreachable one must never disturb playback.
-    // Smart queues are deliberately not history items.
-    private fun reportPlayStarted(source: QueueSource?) {
-        val (type, id) = when (source) {
-            is QueueSource.Album -> "album" to source.albumId
-            is QueueSource.Playlist -> "playlist" to source.playlistId
-            else -> return
+    // Convenience launchers for tiles/cards that only carry an id or a key (home,
+    // library grids): fetch the full item, then play it. Fire-and-forget and
+    // failure-tolerant — a load error just leaves playback untouched.
+    fun playAlbumById(serverUrl: String, albumId: Int) {
+        scope.launch {
+            val album = runCatching { ServiceLocator.albumRepository.album(albumId) }.getOrNull() ?: return@launch
+            val firstPlayable = album.tracks.firstOrNull { it.hasFile } ?: return@launch
+            playAlbum(serverUrl, album, firstPlayable.id)
         }
-        scope.launch { runCatching { ServiceLocator.homeRepository.reportPlay(type, id) } }
+    }
+
+    fun playPlaylistById(serverUrl: String, playlistId: Int) {
+        scope.launch {
+            val playlist = runCatching { ServiceLocator.playlistRepository.playlist(playlistId) }.getOrNull() ?: return@launch
+            playQueue(serverUrl, playlist.tracks, source = QueueSource.Playlist(playlistId))
+        }
+    }
+
+    fun playSmartByKey(serverUrl: String, key: String) {
+        scope.launch {
+            val smart = runCatching { ServiceLocator.playlistRepository.smartPlaylist(key) }.getOrNull() ?: return@launch
+            playQueue(
+                serverUrl, smart.tracks,
+                dynamicMix = key == DYNAMIC_MIX_KEY,
+                source = QueueSource.Smart(key),
+            )
+        }
+    }
+
+    // Feeds the home screen's "recently played" section. Fire-and-forget: an
+    // old server (400/404) or an unreachable one must never disturb playback.
+    // Albums and playlists are keyed by id; smart playlists by their text key.
+    private fun reportPlayStarted(source: QueueSource?) {
+        if (source == null) return
+        scope.launch {
+            val recorded = runCatching {
+                when (source) {
+                    is QueueSource.Album -> ServiceLocator.homeRepository.reportPlay("album", source.albumId)
+                    is QueueSource.Playlist -> ServiceLocator.homeRepository.reportPlay("playlist", source.playlistId)
+                    is QueueSource.Smart -> ServiceLocator.homeRepository.reportSmartPlay(source.key)
+                }
+            }.isSuccess
+            // Refresh the home feed only once the entry is actually recorded, so
+            // the GET doesn't race the POST (which left the new item missing).
+            if (recorded) _historyUpdated.emit(Unit)
+        }
     }
 
     /** Optimistic favorite flip of the current track, persisted server-side. */

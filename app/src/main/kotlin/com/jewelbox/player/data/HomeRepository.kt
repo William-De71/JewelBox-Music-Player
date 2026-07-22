@@ -1,5 +1,6 @@
 package com.jewelbox.player.data
 
+import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.ApiClient
 import com.jewelbox.player.data.net.HomeDto
 import com.jewelbox.player.data.net.PlayHistoryBody
@@ -25,7 +26,15 @@ class HomeRepository(private val prefs: ServerPrefs) {
     suspend fun home(): HomeDto =
         requireApi().home()
 
-    /** POST /api/player/history — [itemType] is "album" or "playlist". */
+    /** The [count] most recently added owned albums, newest first (home "latest" row). */
+    suspend fun latestAlbums(count: Int = 5): List<AlbumDto> =
+        requireApi().albums(page = 1, limit = count, sort = "created_at", order = "desc").data
+
+    /** POST /api/player/history for an album or playlist, keyed by [itemId]. */
     suspend fun reportPlay(itemType: String, itemId: Int) =
-        requireApi().reportPlay(PlayHistoryBody(itemType, itemId))
+        requireApi().reportPlay(PlayHistoryBody(itemType, itemId = itemId))
+
+    /** POST /api/player/history for a smart playlist, keyed by its text [key]. */
+    suspend fun reportSmartPlay(key: String) =
+        requireApi().reportPlay(PlayHistoryBody("smart", itemKey = key))
 }

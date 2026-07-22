@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -26,6 +25,7 @@ sealed interface HomeUiState {
     data class Loaded(
         val serverUrl: String,
         val recent: List<HomeRecentItemDto>,
+        val latest: List<AlbumDto>,
         val suggestions: List<AlbumDto>,
     ) : HomeUiState
 }
@@ -44,10 +44,11 @@ class HomeViewModel : ViewModel() {
             .distinctUntilChanged()
             .onEach { url -> loadFor(url) }
             .launchIn(viewModelScope)
-        // A new queue start means a new history entry server-side: refresh the
-        // recent grid so it is up to date when the user comes back to this tab.
-        PlayerConnection.queueSource
-            .drop(1)
+        // Refresh the recent grid once a play has been recorded server-side.
+        // Keyed on historyUpdated (fired after the POST), not on queueSource:
+        // that StateFlow raced the POST and didn't re-fire for a replay of the
+        // same item, so a freshly played list was missing until an app restart.
+        PlayerConnection.historyUpdated
             .onEach { load() }
             .launchIn(viewModelScope)
     }
@@ -67,9 +68,13 @@ class HomeViewModel : ViewModel() {
         }
         runCatching { repo.home() }
             .onSuccess { home ->
+                // Best-effort like on desktop: the "latest added" row stays empty
+                // if that extra call fails, without breaking the rest of the feed.
+                val latest = runCatching { repo.latestAlbums() }.getOrDefault(emptyList())
                 _state.value = HomeUiState.Loaded(
                     serverUrl = serverUrl,
                     recent = home.recent,
+                    latest = latest,
                     suggestions = home.suggestions,
                 )
             }
