@@ -8,11 +8,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,6 +35,7 @@ fun AlbumCard(
     serverUrl: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onPlay: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -61,6 +66,16 @@ fun AlbumCard(
                     modifier = Modifier.fillMaxSize(0.5f),
                 )
             }
+
+            // Play overlay, bottom-end, only when the album has playable tracks.
+            if (onPlay != null && album.hasAudio) {
+                CoverPlayButton(
+                    onClick = onPlay,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp),
+                )
+            }
         }
 
         // Small labels: the grids show four tiles per row, so the text has to
@@ -78,6 +93,32 @@ fun AlbumCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Round "play" button overlaid on a cover, shared by every tile/card that can
+ * start playback from the home and library grids. Its click is isolated so it
+ * doesn't also trigger the card's own onClick (which opens the detail screen).
+ */
+@Composable
+fun CoverPlayButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Int = 32,
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        modifier = modifier.size(size.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.PlayArrow,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(0.7f),
         )
     }
 }

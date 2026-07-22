@@ -202,20 +202,33 @@ data class SearchResultsDto(
     val tracks: List<QueueTrackDto> = emptyList(),
 )
 
-/** Body of POST /api/player/history — item_type is "album" or "playlist". */
+/**
+ * Body of POST /api/player/history. item_type is "album", "playlist" or "smart".
+ * Album/playlist carry item_id; a smart playlist has no numeric id and carries
+ * item_key (its stable text key). Only the relevant field is serialized.
+ */
 @Serializable
 data class PlayHistoryBody(
     @SerialName("item_type") val itemType: String,
-    @SerialName("item_id") val itemId: Int,
+    @SerialName("item_id") val itemId: Int? = null,
+    @SerialName("item_key") val itemKey: String? = null,
 )
 
-/** Entry of the home feed's recent section: exactly one of album/playlist is set. */
+/** Smart playlist summary in the home feed: label and icon are resolved client-side from the key. */
+@Serializable
+data class SmartSummaryDto(
+    val key: String = "",
+    @SerialName("track_count") val trackCount: Int = 0,
+)
+
+/** Entry of the home feed's recent section: exactly one of album/playlist/smart is set. */
 @Serializable
 data class HomeRecentItemDto(
     @SerialName("item_type") val itemType: String = "",
     @SerialName("played_at") val playedAt: String? = null,
     val album: AlbumDto? = null,
     val playlist: PlaylistSummaryDto? = null,
+    val smart: SmartSummaryDto? = null,
 )
 
 /** Response of GET /api/player/home (server >= 1.9). */

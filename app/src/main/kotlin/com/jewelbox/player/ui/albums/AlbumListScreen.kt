@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jewelbox.player.R
+import com.jewelbox.player.playback.PlayerConnection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -213,6 +214,7 @@ private fun AlbumGrid(
                             album = album,
                             serverUrl = state.serverUrl,
                             onClick = { onOpenAlbum(album.id) },
+                            onPlay = { PlayerConnection.playAlbumById(state.serverUrl, album.id) },
                         )
                     }
                 }
@@ -223,6 +225,7 @@ private fun AlbumGrid(
                     album = album,
                     serverUrl = state.serverUrl,
                     onClick = { onOpenAlbum(album.id) },
+                    onPlay = { PlayerConnection.playAlbumById(state.serverUrl, album.id) },
                 )
             }
         }
