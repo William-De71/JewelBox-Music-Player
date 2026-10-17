@@ -7,6 +7,10 @@
 
     <!-- Accueil -->
     <string name="home_title">Accueil</string>
+    <string name="resume_from_device">Reprendre depuis %1$s</string>
+    <string name="resume_unnamed_device">un autre appareil</string>
+    <string name="resume_action">Reprendre</string>
+    <string name="resume_dismiss">Ignorer</string>
     <string name="home_recent_header">Reprendre l\'écoute</string>
     <string name="home_latest_header">Derniers ajouts</string>
     <string name="home_suggestions_header">Suggestions d\'écoute</string>

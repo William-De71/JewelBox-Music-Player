@@ -3,7 +3,9 @@ package com.jewelbox.player.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -15,12 +17,14 @@ import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.SavedQueue
 import com.jewelbox.player.data.SavedTrack
 import com.jewelbox.player.data.net.AlbumDto
+import com.jewelbox.player.data.net.DeviceQueueDto
 import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.ui.playlists.DYNAMIC_MIX_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -113,6 +117,18 @@ object PlayerConnection {
     // feeds it player positions and fires the network calls it requests.
     private val scrobbleTracker = ScrobbleTracker()
 
+    // Cross-device resume: the queue is mirrored to the server's per-device
+    // queue. When to send what is decided by QueueSyncPlanner (pure, tested).
+    private val queueSyncPlanner = QueueSyncPlanner()
+    private var pendingQueueSave: Job? = null
+
+    /** Delay grouping a burst of queue edits (pick an album, skip twice…) into one PUT. */
+    private const val QUEUE_SAVE_DELAY_MS = 1500L
+
+    /** Name the other devices see under "Reprendre depuis…". */
+    private val deviceLabel: String
+        get() = "JewelBox Android · ${Build.MODEL}"
+
     fun init(context: Context) {
         if (controller != null) return
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
@@ -121,7 +137,10 @@ object PlayerConnection {
             val c = future.get()
             controller = c
             c.addListener(object : Player.Listener {
-                override fun onEvents(player: Player, events: Player.Events) = syncState(player)
+                override fun onEvents(player: Player, events: Player.Events) {
+                    syncState(player)
+                    syncServerQueue(player)
+                }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     // AUTO means the previous item played through to its end —
                     // the trigger for the dynamic mix rotation (seeks/skips don't count).
@@ -342,6 +361,8 @@ object PlayerConnection {
         val durationMs = c.duration.takeIf { it != C.TIME_UNSET } ?: 0L
         val positionMs = c.currentPosition
         _position.value = PlaybackPosition(positionMs, durationMs)
+        // Periodic progress for the server-side queue (the planner throttles it).
+        syncServerQueue(c)
 
         // Checkpoint the resume position while playing, rarely enough not to
         // hammer DataStore: losing at most 5s of progress is imperceptible.
@@ -390,6 +411,7 @@ object PlayerConnection {
         startIndex: Int = 0,
         dynamicMix: Boolean = false,
         source: QueueSource? = null,
+        startPositionMs: Long = 0L,
     ) {
         val c = controller ?: return
         val playable = tracks.filter { it.hasFile }
@@ -399,10 +421,70 @@ object PlayerConnection {
         _queueSource.value = source
         reportPlayStarted(source)
         val items = playable.map { mediaItem(serverUrl, it) }
-        c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), 0L)
+        c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), startPositionMs.coerceAtLeast(0L))
         c.prepare()
         c.play()
         saveQueue()
+    }
+
+    /**
+     * Picks up the queue another device left on the server: same tracks, same
+     * current track, same position within it. Returns false when nothing in
+     * it is playable here.
+     */
+    fun resumeQueue(serverUrl: String, queue: DeviceQueueDto): Boolean {
+        val start = resumeStart(queue.tracks.map { it.hasFile }, queue.currentIndex) ?: return false
+        playQueue(
+            serverUrl, queue.tracks,
+            startIndex = start.index,
+            startPositionMs = if (start.sameTrack) (queue.positionSec * 1000).toLong() else 0L,
+        )
+        return true
+    }
+
+    /**
+     * Mirrors the queue to the server for cross-device resume. Best-effort and
+     * silent: an old server without these routes, or an unreachable one, must
+     * never disturb playback. A full save is deferred a moment so a burst of
+     * edits makes a single PUT, built from the player's state at send time.
+     */
+    private fun syncServerQueue(player: Player) {
+        if (restoring || queueServerUrl == null) return
+        val ids = (0 until player.mediaItemCount).mapNotNull { player.getMediaItemAt(it).mediaId.toIntOrNull() }
+        val action = queueSyncPlanner.update(
+            trackIds = ids,
+            currentIndex = if (player.mediaItemCount > 0) player.currentMediaItemIndex else null,
+            positionSec = player.currentPosition / 1000.0,
+            isPlaying = player.isPlaying,
+            nowSec = SystemClock.elapsedRealtime() / 1000.0,
+        ) ?: return
+        val repo = ServiceLocator.queueSyncRepository
+        when (action) {
+            is SyncAction.Save -> {
+                pendingQueueSave?.cancel()
+                pendingQueueSave = scope.launch {
+                    delay(QUEUE_SAVE_DELAY_MS)
+                    val c = controller ?: return@launch
+                    val trackIds = (0 until c.mediaItemCount)
+                        .mapNotNull { c.getMediaItemAt(it).mediaId.toIntOrNull() }
+                    if (trackIds.isEmpty()) return@launch
+                    runCatching {
+                        repo.saveQueue(
+                            trackIds, c.currentMediaItemIndex,
+                            c.currentPosition / 1000.0, deviceLabel,
+                        )
+                    }
+                }
+            }
+            // A pending PUT will carry the latest state anyway.
+            is SyncAction.State -> if (pendingQueueSave?.isActive != true) {
+                scope.launch { runCatching { repo.updateState(action.currentIndex, action.positionSec) } }
+            }
+            SyncAction.Clear -> {
+                pendingQueueSave?.cancel()
+                scope.launch { runCatching { repo.clear() } }
+            }
+        }
     }
 
     // Convenience launchers for tiles/cards that only carry an id or a key (home,

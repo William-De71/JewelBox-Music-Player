@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit
  */
 object ApiClient {
 
+    const val DEVICE_ID_HEADER = "X-Device-Id"
+
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -31,14 +33,26 @@ object ApiClient {
 
     /**
      * @param rawUrl the user-entered server URL, e.g. "http://192.168.1.20:3001".
+     * @param deviceId sent as X-Device-Id when given: the playback-queue routes
+     *   are scoped per device (cross-device resume); other routes ignore it.
      * @throws IllegalArgumentException if the URL is blank or malformed.
      */
-    fun create(rawUrl: String): JewelBoxApi {
+    fun create(rawUrl: String, deviceId: String? = null): JewelBoxApi {
         val baseUrl = normalize(rawUrl)
         val contentType = "application/json".toMediaType()
+        val client = if (deviceId.isNullOrBlank()) {
+            okHttp
+        } else {
+            // newBuilder() shares the connection pool with the base client.
+            okHttp.newBuilder()
+                .addInterceptor { chain ->
+                    chain.proceed(chain.request().newBuilder().header(DEVICE_ID_HEADER, deviceId).build())
+                }
+                .build()
+        }
         return Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(okHttp)
+            .client(client)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
             .create(JewelBoxApi::class.java)

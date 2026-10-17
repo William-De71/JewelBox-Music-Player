@@ -7,6 +7,7 @@ import com.jewelbox.player.data.AlbumRepository
 import com.jewelbox.player.data.HomeRepository
 import com.jewelbox.player.data.PlaybackStateStore
 import com.jewelbox.player.data.PlaylistRepository
+import com.jewelbox.player.data.QueueSyncRepository
 import com.jewelbox.player.data.ServerPrefs
 import com.jewelbox.player.data.net.ServerDiscovery
 import com.jewelbox.player.playback.PlayerConnection
@@ -40,12 +41,15 @@ object ServiceLocator {
         private set
     lateinit var serverDiscovery: ServerDiscovery
         private set
+    lateinit var queueSyncRepository: QueueSyncRepository
+        private set
 
     fun init(app: Application) {
         serverPrefs = ServerPrefs(app.applicationContext)
         albumRepository = AlbumRepository(serverPrefs)
         playlistRepository = PlaylistRepository(serverPrefs)
         homeRepository = HomeRepository(serverPrefs)
+        queueSyncRepository = QueueSyncRepository(serverPrefs)
         playbackStateStore = PlaybackStateStore(app.applicationContext)
         serverDiscovery = ServerDiscovery(
             app.getSystemService(Context.NSD_SERVICE) as NsdManager,

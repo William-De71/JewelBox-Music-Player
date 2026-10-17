@@ -8,8 +8,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 
-// Single DataStore for the app's small settings; today just the server URL + id.
+// Single DataStore for the app's small settings: server URL + id, device id.
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "jewelbox_settings")
 
 /**
@@ -33,6 +34,20 @@ class ServerPrefs(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[SERVER_URL_KEY] = url.trim() }
     }
 
+    /**
+     * This install's stable identity, sent as X-Device-Id so the server keeps
+     * one playback queue per device (cross-device resume). Minted on first use
+     * and never regenerated: a new id would orphan the queue left behind.
+     */
+    suspend fun deviceId(): String {
+        var id = ""
+        context.dataStore.edit { prefs ->
+            id = prefs[DEVICE_ID_KEY].orEmpty().ifBlank { UUID.randomUUID().toString() }
+            prefs[DEVICE_ID_KEY] = id
+        }
+        return id
+    }
+
     /** Saves both halves at once — the URL to reach the server, the id to recognize it. */
     suspend fun setServer(url: String, serverId: String) {
         context.dataStore.edit { prefs ->
@@ -44,5 +59,6 @@ class ServerPrefs(private val context: Context) {
     private companion object {
         val SERVER_URL_KEY = stringPreferencesKey("server_url")
         val SERVER_ID_KEY = stringPreferencesKey("server_id")
+        val DEVICE_ID_KEY = stringPreferencesKey("device_id")
     }
 }

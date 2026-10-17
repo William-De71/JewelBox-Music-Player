@@ -21,8 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.jewelbox.player.R
 import com.jewelbox.player.data.net.HomeRecentItemDto
+import com.jewelbox.player.data.net.QueueDeviceDto
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.playback.PlayerConnection
 import com.jewelbox.player.ui.albums.AlbumCard
@@ -69,6 +75,7 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val resumable by vm.resumable.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -115,6 +122,9 @@ fun HomeScreen(
 
                 is HomeUiState.Loaded -> HomeContent(
                     state = s,
+                    resumable = resumable,
+                    onResume = vm::resume,
+                    onDismissResume = vm::dismissResume,
                     onOpenAlbum = onOpenAlbum,
                     onOpenPlaylist = onOpenPlaylist,
                     onOpenSmart = onOpenSmart,
@@ -127,6 +137,9 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(
     state: HomeUiState.Loaded,
+    resumable: QueueDeviceDto?,
+    onResume: (QueueDeviceDto) -> Unit,
+    onDismissResume: (QueueDeviceDto) -> Unit,
     onOpenAlbum: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
     onOpenSmart: (String) -> Unit,
@@ -146,6 +159,15 @@ private fun HomeContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        if (resumable != null) {
+            item(key = "resume-${resumable.deviceId}", span = { GridItemSpan(maxLineSpan) }) {
+                ResumeCard(
+                    device = resumable,
+                    onResume = { onResume(resumable) },
+                    onDismiss = { onDismissResume(resumable) },
+                )
+            }
+        }
         item(key = "recent-header", span = { GridItemSpan(maxLineSpan) }) {
             SectionHeader(stringResource(R.string.home_recent_header))
         }
@@ -206,6 +228,54 @@ private fun HomeContent(
                     onClick = { onOpenAlbum(album.id) },
                     onPlay = { PlayerConnection.playAlbumById(state.serverUrl, album.id) },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * "Reprendre depuis …": another device (the desktop player, the web app) left
+ * a queue on the server recently; one tap continues it here, at the same
+ * track and position.
+ */
+@Composable
+private fun ResumeCard(
+    device: QueueDeviceDto,
+    onResume: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+        ) {
+            Icon(Icons.Filled.Devices, contentDescription = null)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.resume_from_device,
+                        device.deviceLabel ?: stringResource(R.string.resume_unnamed_device),
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.track_count, device.trackCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onResume) { Text(stringResource(R.string.resume_action)) }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.resume_dismiss))
             }
         }
     }
