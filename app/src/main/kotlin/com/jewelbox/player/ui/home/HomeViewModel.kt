@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.HomeRecentItemDto
+import com.jewelbox.player.data.net.QueueDeviceDto
+import com.jewelbox.player.playback.pickResumable
 
 sealed interface HomeUiState {
     data object Loading : HomeUiState
@@ -37,6 +39,15 @@ class HomeViewModel : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
+    // Another device's recent queue, offered as "Reprendre depuis…" above the
+    // feed (cross-device resume); null when there is nothing worth offering.
+    private val _resumable = MutableStateFlow<QueueDeviceDto?>(null)
+    val resumable: StateFlow<QueueDeviceDto?> = _resumable.asStateFlow()
+
+    // Devices dismissed this session, so a dismissed banner stays gone across
+    // home refreshes until that device plays something new.
+    private val dismissed = mutableSetOf<Pair<String, String?>>()
+
     init {
         // React to the configured server URL and every later change (e.g. after
         // the user saves an address in Settings): (re)load automatically.
@@ -58,6 +69,33 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch { loadFor(repo.currentServerUrl()) }
     }
 
+    /** Best-effort: an old server without the queue routes simply shows nothing. */
+    private suspend fun refreshResumable() {
+        val devices = runCatching { ServiceLocator.queueSyncRepository.otherDevices() }
+            .getOrDefault(emptyList())
+            .filter { (it.deviceId to it.updatedAt) !in dismissed }
+        _resumable.value = pickResumable(
+            devices, { it.trackCount }, { it.updatedAt },
+            System.currentTimeMillis() / 1000,
+        )
+    }
+
+    /** Loads that device's queue and plays it here, at the same track and position. */
+    fun resume(device: QueueDeviceDto) {
+        _resumable.value = null
+        viewModelScope.launch {
+            val serverUrl = repo.currentServerUrl()
+            val queue = runCatching { ServiceLocator.queueSyncRepository.deviceQueue(device.deviceId) }
+                .getOrNull() ?: return@launch
+            PlayerConnection.resumeQueue(serverUrl, queue)
+        }
+    }
+
+    fun dismissResume(device: QueueDeviceDto) {
+        dismissed += device.deviceId to device.updatedAt
+        _resumable.value = null
+    }
+
     private suspend fun loadFor(serverUrl: String) {
         if (serverUrl.isBlank()) {
             _state.value = HomeUiState.NoServer
@@ -66,6 +104,7 @@ class HomeViewModel : ViewModel() {
         if (_state.value !is HomeUiState.Loaded) {
             _state.value = HomeUiState.Loading
         }
+        refreshResumable()
         runCatching { repo.home() }
             .onSuccess { home ->
                 // Best-effort like on desktop: the "latest added" row stays empty

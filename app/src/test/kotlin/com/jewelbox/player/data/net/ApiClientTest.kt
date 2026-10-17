@@ -56,6 +56,21 @@ class ApiClientTest {
     }
 
     @Test
+    fun `a device id is sent as X-Device-Id, and nothing without it`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody("""{"status":"ok"}"""))
+            server.enqueue(MockResponse().setBody("""{"status":"ok"}"""))
+            server.start()
+
+            ApiClient.create(server.url("/").toString(), deviceId = "phone-1").health()
+            ApiClient.create(server.url("/").toString()).health()
+
+            assertEquals("phone-1", server.takeRequest().getHeader("X-Device-Id"))
+            assertEquals(null, server.takeRequest().getHeader("X-Device-Id"))
+        }
+    }
+
+    @Test
     fun `albums request carries the collection filters`() = runBlocking {
         MockWebServer().use { server ->
             server.enqueue(

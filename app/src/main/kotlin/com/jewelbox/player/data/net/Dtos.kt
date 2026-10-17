@@ -251,3 +251,45 @@ data class AlbumsPage(
     val data: List<AlbumDto> = emptyList(),
     val pagination: Pagination = Pagination(),
 )
+
+// ── File partagée entre appareils ────────────────────────────────────────────
+
+@Serializable
+data class SaveQueueBody(
+    @SerialName("track_ids") val trackIds: List<Int>,
+    @SerialName("current_index") val currentIndex: Int,
+    @SerialName("position_sec") val positionSec: Double,
+    @SerialName("device_label") val deviceLabel: String,
+)
+
+@Serializable
+data class QueueStateBody(
+    @SerialName("current_index") val currentIndex: Int,
+    @SerialName("position_sec") val positionSec: Double,
+)
+
+/** Row of GET /api/player/queue/devices. */
+@Serializable
+data class QueueDeviceDto(
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_label") val deviceLabel: String? = null,
+    @SerialName("current_index") val currentIndex: Int = -1,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("track_count") val trackCount: Int = 0,
+)
+
+@Serializable
+data class QueueDevicesResponse(
+    val data: List<QueueDeviceDto> = emptyList(),
+)
+
+/** A device's queue: GET /api/player/queue/devices/:id, and the PUT response. */
+@Serializable
+data class DeviceQueueDto(
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_label") val deviceLabel: String? = null,
+    @SerialName("current_index") val currentIndex: Int = -1,
+    @SerialName("position_sec") val positionSec: Double = 0.0,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    val tracks: List<QueueTrackDto> = emptyList(),
+)

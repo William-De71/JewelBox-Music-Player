@@ -123,6 +123,27 @@ interface JewelBoxApi {
     @POST("api/player/history")
     suspend fun reportPlay(@Body body: PlayHistoryBody)
 
+    // ── File partagée entre appareils (X-Device-Id requis) ───────────────────
+
+    /** Replaces THIS device's queue on the server (tracks + current index + position). */
+    @PUT("api/player/queue")
+    suspend fun saveQueue(@Body body: SaveQueueBody): DeviceQueueDto
+
+    /** Progress only (current index, position), 204. */
+    @PATCH("api/player/queue/state")
+    suspend fun updateQueueState(@Body body: QueueStateBody)
+
+    @DELETE("api/player/queue")
+    suspend fun clearQueue()
+
+    /** Queues left by the OTHER devices, most recent first. */
+    @GET("api/player/queue/devices")
+    suspend fun queueDevices(): QueueDevicesResponse
+
+    /** Another device's queue, to resume it here (server >= 1.16; 404 before). */
+    @GET("api/player/queue/devices/{deviceId}")
+    suspend fun deviceQueue(@Path("deviceId") deviceId: String): DeviceQueueDto
+
     // ── Favoris ──────────────────────────────────────────────────────────────
 
     @PATCH("api/player/tracks/{id}/favorite")
