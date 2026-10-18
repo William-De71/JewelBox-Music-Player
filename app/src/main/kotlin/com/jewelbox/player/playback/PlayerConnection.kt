@@ -113,6 +113,12 @@ object PlayerConnection {
     private val _historyUpdated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val historyUpdated: SharedFlow<Unit> = _historyUpdated.asSharedFlow()
 
+    // Emitted with the server's fresh dynamic mix list after each rotation (a
+    // track played through), so an open dynamic mix screen shows the same list
+    // as the queue instead of the one it loaded.
+    private val _dynamicMixUpdated = MutableSharedFlow<List<QueueTrackDto>>(extraBufferCapacity = 1)
+    val dynamicMixUpdated: SharedFlow<List<QueueTrackDto>> = _dynamicMixUpdated.asSharedFlow()
+
     // Scrobble rules live in ScrobbleTracker (pure, unit-tested); this object only
     // feeds it player positions and fires the network calls it requests.
     private val scrobbleTracker = ScrobbleTracker()
@@ -296,6 +302,7 @@ object PlayerConnection {
         scope.launch {
             val fresh = runCatching { ServiceLocator.playlistRepository.dynamicMixPlayed(trackId) }
                 .getOrNull() ?: return@launch
+            _dynamicMixUpdated.tryEmit(fresh.tracks)
             // Another queue may have taken over while the request was in flight.
             if (dynamicMix) syncDynamicMixQueue(fresh.tracks, restart = queueExhausted)
         }
