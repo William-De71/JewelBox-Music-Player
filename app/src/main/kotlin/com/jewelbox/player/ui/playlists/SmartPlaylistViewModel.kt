@@ -30,6 +30,16 @@ class SmartPlaylistViewModel(private val smartKey: String) : ViewModel() {
 
     init {
         load()
+        // The dynamic mix rotates as tracks play through (PlayerConnection
+        // reports them): follow the server's fresh list, like the queue does.
+        if (smartKey == DYNAMIC_MIX_KEY) {
+            viewModelScope.launch {
+                PlayerConnection.dynamicMixUpdated.collect { tracks ->
+                    (_state.value as? SmartPlaylistUiState.Loaded)
+                        ?.let { _state.value = it.copy(tracks = tracks) }
+                }
+            }
+        }
     }
 
     fun load() {
