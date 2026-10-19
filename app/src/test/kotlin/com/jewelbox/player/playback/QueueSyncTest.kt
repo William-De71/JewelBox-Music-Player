@@ -148,4 +148,26 @@ class QueueSyncTest {
         val now = parseServerTimestamp("2026-10-17 20:00:00")!!
         assertNull(pick(listOf(Dev("skewed", 4, "2026-10-18 20:00:00")), now))
     }
+
+    @Test
+    fun `resend forces a full save of unchanged tracks`() {
+        val planner = QueueSyncPlanner()
+        planner.update(listOf(1, 2), 0, 0.0, isPlaying = false, nowSec = 0.0)
+        planner.resend()
+        assertEquals(
+            SyncAction.Save(listOf(1, 2), 1, 3.0),
+            planner.update(listOf(1, 2), 1, 3.0, isPlaying = true, nowSec = 1.0),
+        )
+    }
+
+    @Test
+    fun `resume headline names the track, else the source`() {
+        assertEquals("Airbag — Radiohead", resumeHeadline("Airbag", "Radiohead", "Mix dynamique"))
+        assertEquals("Airbag", resumeHeadline("Airbag", null, null))
+        assertEquals("Airbag", resumeHeadline("Airbag", " ", null))
+        assertEquals("Mix dynamique", resumeHeadline(null, "Radiohead", "Mix dynamique"))
+        assertEquals("Mix dynamique", resumeHeadline("", null, "Mix dynamique"))
+        assertNull(resumeHeadline(null, null, null))
+        assertNull(resumeHeadline(null, null, " "))
+    }
 }

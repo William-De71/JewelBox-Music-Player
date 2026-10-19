@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -53,6 +52,7 @@ import com.jewelbox.player.data.net.HomeRecentItemDto
 import com.jewelbox.player.data.net.QueueDeviceDto
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.playback.PlayerConnection
+import com.jewelbox.player.playback.resumeHeadline
 import com.jewelbox.player.ui.albums.AlbumCard
 import com.jewelbox.player.ui.albums.CoverPlayButton
 import com.jewelbox.player.ui.playlists.smartSpec
@@ -244,38 +244,55 @@ private fun ResumeCard(
     onResume: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val deviceName = device.deviceLabel ?: stringResource(R.string.resume_unnamed_device)
+    val current = device.currentTrack
+    // What it was on first (track — artist, else the queue's source), then
+    // where from; the actions get their own row so nothing is cut off.
+    val headline = resumeHeadline(current?.title, current?.artistName, device.sourceLabel)
+    val details = listOfNotNull(
+        device.sourceLabel?.takeIf { current != null && it.isNotBlank() },
+        stringResource(R.string.track_count, device.trackCount),
+    ).joinToString(" · ")
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
-        ) {
-            Icon(Icons.Filled.Devices, contentDescription = null)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-            ) {
-                Text(
-                    text = stringResource(
-                        R.string.resume_from_device,
-                        device.deviceLabel ?: stringResource(R.string.resume_unnamed_device),
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(R.string.track_count, device.trackCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Devices, contentDescription = null)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp),
+                ) {
+                    val from = stringResource(R.string.resume_from_device, deviceName)
+                    // Older servers say nothing of the track: the device is the headline then.
+                    if (headline != null) {
+                        Text(
+                            text = from,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = headline ?: from,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = details,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            TextButton(onClick = onResume) { Text(stringResource(R.string.resume_action)) }
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.resume_dismiss))
+            Row(
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.resume_dismiss)) }
+                TextButton(onClick = onResume) { Text(stringResource(R.string.resume_action)) }
             }
         }
     }

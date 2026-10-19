@@ -16,8 +16,14 @@ class QueueSyncRepository(private val prefs: ServerPrefs) {
 
     private suspend fun api() = ApiClient.create(prefs.serverUrl.first(), prefs.deviceId())
 
-    suspend fun saveQueue(trackIds: List<Int>, currentIndex: Int, positionSec: Double, deviceLabel: String) {
-        api().saveQueue(SaveQueueBody(trackIds, currentIndex, positionSec, deviceLabel))
+    suspend fun saveQueue(
+        trackIds: List<Int>,
+        currentIndex: Int,
+        positionSec: Double,
+        deviceLabel: String,
+        sourceLabel: String? = null,
+    ) {
+        api().saveQueue(SaveQueueBody(trackIds, currentIndex, positionSec, deviceLabel, sourceLabel))
     }
 
     suspend fun updateState(currentIndex: Int, positionSec: Double) =

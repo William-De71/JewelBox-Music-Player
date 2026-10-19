@@ -33,12 +33,34 @@ class QueueDtoParsingTest {
     }
 
     @Test
+    fun `a device row says what was playing`() {
+        val device = json.decodeFromString<QueueDeviceDto>(
+            """{"device_id":"desk","source_label":"Mix dynamique",
+                "current_track":{"id":4,"title":"Airbag","artist_name":"Radiohead",
+                "album_title":"OK Computer","cover_url":"/covers/ok.jpg"}}""",
+        )
+        assertEquals("Mix dynamique", device.sourceLabel)
+        val current = device.currentTrack!!
+        assertEquals(4, current.id)
+        assertEquals("Airbag", current.title)
+        assertEquals("Radiohead", current.artistName)
+        assertEquals("OK Computer", current.albumTitle)
+        assertEquals("/covers/ok.jpg", current.coverUrl)
+        val bare = json.decodeFromString<QueueCurrentTrackDto>("""{"id":1,"title":"x"}""")
+        assertNull(bare.artistName)
+        assertNull(bare.albumTitle)
+        assertNull(bare.coverUrl)
+    }
+
+    @Test
     fun `a minimal device row falls back to defaults`() {
         val device = json.decodeFromString<QueueDeviceDto>("""{"device_id":"web","device_label":null}""")
         assertNull(device.deviceLabel)
         assertEquals(-1, device.currentIndex)
         assertNull(device.updatedAt)
         assertEquals(0, device.trackCount)
+        assertNull(device.sourceLabel)
+        assertNull(device.currentTrack)
         assertTrue(json.decodeFromString<QueueDevicesResponse>("{}").data.isEmpty())
     }
 
@@ -53,6 +75,11 @@ class QueueDtoParsingTest {
         assertEquals(1, queue.currentIndex)
         assertEquals(42.5, queue.positionSec, 0.0)
         assertEquals(5, queue.tracks.single().id)
+        assertNull(queue.sourceLabel)
+        assertEquals(
+            "OK Computer",
+            json.decodeFromString<DeviceQueueDto>("""{"device_id":"x","source_label":"OK Computer"}""").sourceLabel,
+        )
     }
 
     @Test

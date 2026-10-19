@@ -22,6 +22,7 @@ import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.ui.playlists.DYNAMIC_MIX_KEY
+import com.jewelbox.player.ui.playlists.smartSpec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -128,6 +129,11 @@ object PlayerConnection {
     private val queueSyncPlanner = QueueSyncPlanner()
     private var pendingQueueSave: Job? = null
 
+    // What the queue was started from (album title, playlist name, smart list
+    // label), sent along so the other devices can say what they would resume.
+    private var sourceLabel: String? = null
+    private var appContext: Context? = null
+
     /** Delay grouping a burst of queue edits (pick an album, skip twice…) into one PUT. */
     private const val QUEUE_SAVE_DELAY_MS = 1500L
 
@@ -137,6 +143,7 @@ object PlayerConnection {
 
     fun init(context: Context) {
         if (controller != null) return
+        appContext = context.applicationContext
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val future = MediaController.Builder(context, token).buildAsync()
         future.addListener({
@@ -233,6 +240,7 @@ object PlayerConnection {
                     "smart" -> saved.sourceId?.let(QueueSource::Smart)
                     else -> null
                 }
+                updateSourceLabel(defaultSourceLabel(_queueSource.value))
                 val items = saved.tracks.map { mediaItem(saved.serverUrl, it) }
                 c.setMediaItems(items, saved.index.coerceIn(0, items.lastIndex), saved.positionMs)
                 // prepare() without play(): buffered and ready, silent until asked.
@@ -397,6 +405,7 @@ object PlayerConnection {
         dynamicMix = false
         queueServerUrl = serverUrl
         _queueSource.value = QueueSource.Album(album.id)
+        updateSourceLabel(album.title)
         reportPlayStarted(QueueSource.Album(album.id))
         val startIndex = playable.indexOfFirst { it.id == startTrackId }.coerceAtLeast(0)
         val items = playable.map { track -> mediaItem(serverUrl, album, track) }
@@ -419,6 +428,7 @@ object PlayerConnection {
         dynamicMix: Boolean = false,
         source: QueueSource? = null,
         startPositionMs: Long = 0L,
+        sourceLabel: String? = null,
     ) {
         val c = controller ?: return
         val playable = tracks.filter { it.hasFile }
@@ -426,6 +436,7 @@ object PlayerConnection {
         this.dynamicMix = dynamicMix
         queueServerUrl = serverUrl
         _queueSource.value = source
+        updateSourceLabel(sourceLabel ?: defaultSourceLabel(source))
         reportPlayStarted(source)
         val items = playable.map { mediaItem(serverUrl, it) }
         c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), startPositionMs.coerceAtLeast(0L))
@@ -445,8 +456,25 @@ object PlayerConnection {
             serverUrl, queue.tracks,
             startIndex = start.index,
             startPositionMs = if (start.sameTrack) (queue.positionSec * 1000).toLong() else 0L,
+            // Keep the original source ("Mix dynamique", an album…) on this device too.
+            sourceLabel = queue.sourceLabel,
         )
         return true
+    }
+
+    /** Label of a source when the caller didn't name it: smart lists have fixed labels. */
+    private fun defaultSourceLabel(source: QueueSource?): String? {
+        val key = (source as? QueueSource.Smart)?.key ?: return null
+        val spec = smartSpec(key) ?: return null
+        return appContext?.getString(spec.label)
+    }
+
+    private fun updateSourceLabel(label: String?) {
+        if (label == sourceLabel) return
+        sourceLabel = label
+        // Same tracks, new source (e.g. resuming the very queue restored at
+        // start-up): the server must still learn the new label.
+        queueSyncPlanner.resend()
     }
 
     /**
@@ -478,7 +506,7 @@ object PlayerConnection {
                     runCatching {
                         repo.saveQueue(
                             trackIds, c.currentMediaItemIndex,
-                            c.currentPosition / 1000.0, deviceLabel,
+                            c.currentPosition / 1000.0, deviceLabel, sourceLabel,
                         )
                     }
                 }
@@ -508,7 +536,10 @@ object PlayerConnection {
     fun playPlaylistById(serverUrl: String, playlistId: Int) {
         scope.launch {
             val playlist = runCatching { ServiceLocator.playlistRepository.playlist(playlistId) }.getOrNull() ?: return@launch
-            playQueue(serverUrl, playlist.tracks, source = QueueSource.Playlist(playlistId))
+            playQueue(
+                serverUrl, playlist.tracks,
+                source = QueueSource.Playlist(playlistId), sourceLabel = playlist.name,
+            )
         }
     }
 

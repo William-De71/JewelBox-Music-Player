@@ -33,6 +33,11 @@ class QueueSyncPlanner {
     private var playing = false
     private var lastPush = 0.0
 
+    /** The next update re-sends the whole queue even if its tracks are unchanged (its source changed). */
+    fun resend() {
+        trackIds = emptyList()
+    }
+
     /** New queue state; returns the call to make, or null. [nowSec] is any monotonic clock. */
     fun update(
         trackIds: List<Int>,
@@ -119,3 +124,15 @@ fun <T> pickResumable(
     .filter { (_, at) -> nowEpochSec - at in 0..RESUME_WINDOW_SEC }
     .maxByOrNull { (_, at) -> at }
     ?.first
+
+/**
+ * Headline of the "resume from…" card: what the other device was on — its
+ * current track ("Title — Artist"), else its queue's source, else null (the
+ * card then falls back to the device name).
+ */
+fun resumeHeadline(currentTitle: String?, currentArtist: String?, sourceLabel: String?): String? = when {
+    !currentTitle.isNullOrBlank() ->
+        if (currentArtist.isNullOrBlank()) currentTitle else "$currentTitle — $currentArtist"
+    !sourceLabel.isNullOrBlank() -> sourceLabel
+    else -> null
+}
