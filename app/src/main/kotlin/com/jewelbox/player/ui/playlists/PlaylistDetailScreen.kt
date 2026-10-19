@@ -191,6 +191,7 @@ private fun PlaylistDetailContent(
                         PlayerConnection.playQueue(
                             serverUrl, playlist.tracks,
                             source = QueueSource.Playlist(playlist.id),
+                            sourceLabel = playlist.name,
                         )
                     }) {
                         Icon(Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = null)
@@ -228,6 +229,7 @@ private fun PlaylistDetailContent(
                             PlayerConnection.playQueue(
                                 serverUrl, playlist.tracks, start,
                                 source = QueueSource.Playlist(playlist.id),
+                                sourceLabel = playlist.name,
                             )
                         }
                     },

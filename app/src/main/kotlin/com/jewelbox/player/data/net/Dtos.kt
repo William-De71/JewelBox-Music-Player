@@ -260,6 +260,8 @@ data class SaveQueueBody(
     @SerialName("current_index") val currentIndex: Int,
     @SerialName("position_sec") val positionSec: Double,
     @SerialName("device_label") val deviceLabel: String,
+    /** What the queue was started from (album, playlist, mix…), shown to the other devices. */
+    @SerialName("source_label") val sourceLabel: String? = null,
 )
 
 @Serializable
@@ -276,6 +278,19 @@ data class QueueDeviceDto(
     @SerialName("current_index") val currentIndex: Int = -1,
     @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("track_count") val trackCount: Int = 0,
+    // What that device was on (server >= 1.17, absent before).
+    @SerialName("source_label") val sourceLabel: String? = null,
+    @SerialName("current_track") val currentTrack: QueueCurrentTrackDto? = null,
+)
+
+/** The track another device was on, in a GET /api/player/queue/devices row. */
+@Serializable
+data class QueueCurrentTrackDto(
+    val id: Int,
+    val title: String,
+    @SerialName("artist_name") val artistName: String? = null,
+    @SerialName("album_title") val albumTitle: String? = null,
+    @SerialName("cover_url") val coverUrl: String? = null,
 )
 
 @Serializable
@@ -292,4 +307,5 @@ data class DeviceQueueDto(
     @SerialName("position_sec") val positionSec: Double = 0.0,
     @SerialName("updated_at") val updatedAt: String? = null,
     val tracks: List<QueueTrackDto> = emptyList(),
+    @SerialName("source_label") val sourceLabel: String? = null,
 )

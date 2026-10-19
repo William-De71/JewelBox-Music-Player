@@ -51,7 +51,7 @@ class QueueSyncRepositoryTest {
             server.start()
             prefs.setServerUrl(server.url("/").toString())
 
-            repo.saveQueue(listOf(5, 6), 1, 12.5, "JewelBox Android · Pixel")
+            repo.saveQueue(listOf(5, 6), 1, 12.5, "JewelBox Android · Pixel", "Kind of Blue")
 
             val request = server.takeRequest()
             assertEquals("PUT", request.method)
@@ -62,6 +62,7 @@ class QueueSyncRepositoryTest {
             assertTrue("\"current_index\":1" in body)
             assertTrue("\"position_sec\":12.5" in body)
             assertTrue("\"device_label\":\"JewelBox Android · Pixel\"" in body)
+            assertTrue("\"source_label\":\"Kind of Blue\"" in body)
         }
     }
 
