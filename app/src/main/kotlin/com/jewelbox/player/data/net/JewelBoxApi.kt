@@ -151,6 +151,10 @@ interface JewelBoxApi {
         @Query("artist_id") artistId: Int? = null,
     ): RadioDto
 
+    /** THIS device's queue on the server. */
+    @GET("api/player/queue")
+    suspend fun ownQueue(): DeviceQueueDto
+
     /** Queues left by the OTHER devices, most recent first. */
     @GET("api/player/queue/devices")
     suspend fun queueDevices(): QueueDevicesResponse

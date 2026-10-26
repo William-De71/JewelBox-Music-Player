@@ -22,6 +22,21 @@ data class QueueSyncPlan(
  */
 object DynamicMixSync {
 
+    /** Tracks kept behind the current one ("previous" goes back to them) before they are consumed. */
+    const val KEEP_BEHIND = 4
+
+    /**
+     * Tracks to consume when skipping through the mix by hand. A skipped track
+     * is not consumed (only one played through is), so skipping alone would run
+     * the queue dry without the server ever refilling it. Reaching track
+     * [KEEP_BEHIND] + 1 therefore consumes the ones before it: the current track
+     * is back on top and the bottom of the list refills. [playedBefore] are the
+     * tracks before the current one, in play order. Same rule as the PWA
+     * (MIX_KEEP_BEHIND) and the desktop (core/dynamic_mix.py).
+     */
+    fun trimIds(playedBefore: List<Int>): List<Int> =
+        if (playedBefore.size >= KEEP_BEHIND) playedBefore else emptyList()
+
     fun plan(currentIds: List<Int>, serverTracks: List<QueueTrackDto>): QueueSyncPlan {
         val serverIds = serverTracks.mapTo(HashSet()) { it.id }
         val localIds = currentIds.toHashSet()

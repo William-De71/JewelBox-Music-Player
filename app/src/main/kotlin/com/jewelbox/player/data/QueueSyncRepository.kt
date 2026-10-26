@@ -42,4 +42,6 @@ class QueueSyncRepository(private val prefs: ServerPrefs) {
     suspend fun otherDevices(): List<QueueDeviceDto> = api().queueDevices().data
 
     suspend fun deviceQueue(deviceId: String): DeviceQueueDto = api().deviceQueue(deviceId)
+
+    suspend fun ownQueue(): DeviceQueueDto = api().ownQueue()
 }

@@ -112,18 +112,27 @@ fun parseServerTimestamp(value: String?): Long? {
  * The other device worth offering to resume: the most recently updated one
  * that still has tracks, if it was active within [RESUME_WINDOW_SEC]. Older
  * queues are noise — nobody wants last month's album pushed on the home screen.
+ *
+ * [ownUpdatedAt] is this device's own queue date: a device that played nothing
+ * since this one was last used was already resumed here (or listened to here
+ * after it), so it is not offered again, track after track or after a restart.
  */
 fun <T> pickResumable(
     devices: List<T>,
     trackCount: (T) -> Int,
     updatedAt: (T) -> String?,
     nowEpochSec: Long,
-): T? = devices
-    .filter { trackCount(it) > 0 }
-    .mapNotNull { device -> parseServerTimestamp(updatedAt(device))?.let { device to it } }
-    .filter { (_, at) -> nowEpochSec - at in 0..RESUME_WINDOW_SEC }
-    .maxByOrNull { (_, at) -> at }
-    ?.first
+    ownUpdatedAt: String? = null,
+): T? {
+    val ownAt = parseServerTimestamp(ownUpdatedAt)
+    return devices
+        .filter { trackCount(it) > 0 }
+        .mapNotNull { device -> parseServerTimestamp(updatedAt(device))?.let { device to it } }
+        .filter { (_, at) -> nowEpochSec - at in 0..RESUME_WINDOW_SEC }
+        .filter { (_, at) -> ownAt == null || at > ownAt }
+        .maxByOrNull { (_, at) -> at }
+        ?.first
+}
 
 /**
  * Headline of the "resume from…" card: what the other device was on — its

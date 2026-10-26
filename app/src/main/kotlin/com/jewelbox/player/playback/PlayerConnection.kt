@@ -174,6 +174,7 @@ object PlayerConnection {
                         onTrackEnded(endedId, queueExhausted = false)
                     }
                     onTrackStarted(mediaItem)
+                    trimDynamicMix(c)
                     saveQueue()
                 }
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -335,6 +336,45 @@ object PlayerConnection {
             // Another queue may have taken over while the request was in flight.
             if (dynamicMix) syncDynamicMixQueue(fresh.tracks, restart = queueExhausted)
         }
+    }
+
+    private var mixTrimming = false
+
+    /** Skipping by hand through the mix: far enough, the skipped tracks are consumed too (see [DynamicMixSync.trimIds]). */
+    private fun trimDynamicMix(c: Player) {
+        if (!dynamicMix || mixTrimming) return
+        val trackIds = DynamicMixSync.trimIds(playedBefore(c))
+        if (trackIds.isEmpty()) return
+        mixTrimming = true
+        scope.launch {
+            var fresh: List<QueueTrackDto>? = null
+            try {
+                for (id in trackIds) {
+                    fresh = runCatching { ServiceLocator.playlistRepository.dynamicMixPlayed(id) }
+                        .getOrNull()?.tracks ?: break
+                }
+            } finally {
+                mixTrimming = false
+            }
+            val tracks = fresh ?: return@launch
+            _dynamicMixUpdated.tryEmit(tracks)
+            if (dynamicMix) syncDynamicMixQueue(tracks, restart = false)
+        }
+    }
+
+    /** Track ids before the current item, in play order (shuffle included). */
+    private fun playedBefore(c: Player): List<Int> {
+        val timeline = c.currentTimeline
+        val current = c.currentMediaItemIndex
+        if (timeline.isEmpty || current == C.INDEX_UNSET) return emptyList()
+        val shuffle = c.shuffleModeEnabled
+        val ids = mutableListOf<Int>()
+        var index = timeline.getFirstWindowIndex(shuffle)
+        while (index != C.INDEX_UNSET && index != current) {
+            c.getMediaItemAt(index).mediaId.toIntOrNull()?.let(ids::add)
+            index = timeline.getNextWindowIndex(index, Player.REPEAT_MODE_OFF, shuffle)
+        }
+        return if (index == current) ids else emptyList()
     }
 
     /**

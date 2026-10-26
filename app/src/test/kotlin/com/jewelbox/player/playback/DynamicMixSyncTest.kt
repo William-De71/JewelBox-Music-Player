@@ -75,4 +75,13 @@ class DynamicMixSyncTest {
         assertEquals(listOf(1, 3), plan.removeIds)
         assertTrue(plan.append.isEmpty())
     }
+
+    @Test
+    fun `skipped tracks are consumed once the fifth one is reached`() {
+        assertEquals(4, DynamicMixSync.KEEP_BEHIND)
+        assertTrue(DynamicMixSync.trimIds(emptyList()).isEmpty())
+        assertTrue(DynamicMixSync.trimIds(listOf(1, 2, 3)).isEmpty())
+        assertEquals(listOf(1, 2, 3, 4), DynamicMixSync.trimIds(listOf(1, 2, 3, 4)))
+        assertEquals(listOf(7, 1, 2, 3, 4), DynamicMixSync.trimIds(listOf(7, 1, 2, 3, 4)))
+    }
 }

@@ -170,4 +170,19 @@ class QueueSyncTest {
         assertNull(resumeHeadline(null, null, null))
         assertNull(resumeHeadline(null, null, " "))
     }
+
+    @Test
+    fun `a device already resumed here is not offered again`() {
+        val now = parseServerTimestamp("2026-10-17 20:00:00")!!
+        val phone = listOf(Dev("phone", 4, "2026-10-17 19:00:00"))
+        val offer = { own: String? -> pickResumable(phone, { it.count }, { it.at }, now, own)?.name }
+        // Resumed here at 19:05 and listened since: gone, even after a restart.
+        assertNull(offer("2026-10-17 19:05:00"))
+        assertNull(offer("2026-10-17 19:00:00"))
+        // The phone played again afterwards: offered again.
+        assertEquals("phone", offer("2026-10-17 18:30:00"))
+        // No queue here, or an unreadable date: the rule does not apply.
+        assertEquals("phone", offer(null))
+        assertEquals("phone", offer("?"))
+    }
 }

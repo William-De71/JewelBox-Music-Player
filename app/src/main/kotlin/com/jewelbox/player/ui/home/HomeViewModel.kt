@@ -71,17 +71,22 @@ class HomeViewModel : ViewModel() {
 
     /** Best-effort: an old server without the queue routes simply shows nothing. */
     private suspend fun refreshResumable() {
-        val devices = runCatching { ServiceLocator.queueSyncRepository.otherDevices() }
+        val repo = ServiceLocator.queueSyncRepository
+        val devices = runCatching { repo.otherDevices() }
             .getOrDefault(emptyList())
             .filter { (it.deviceId to it.updatedAt) !in dismissed }
+        val ownUpdatedAt = if (devices.isEmpty()) null else runCatching { repo.ownQueue().updatedAt }.getOrNull()
         _resumable.value = pickResumable(
             devices, { it.trackCount }, { it.updatedAt },
-            System.currentTimeMillis() / 1000,
+            System.currentTimeMillis() / 1000, ownUpdatedAt,
         )
     }
 
     /** Loads that device's queue and plays it here, at the same track and position. */
     fun resume(device: QueueDeviceDto) {
+        // Until this device's own queue is saved (and dated) on the server,
+        // the next home refresh would offer the same queue again.
+        dismissed += device.deviceId to device.updatedAt
         _resumable.value = null
         viewModelScope.launch {
             val serverUrl = repo.currentServerUrl()
