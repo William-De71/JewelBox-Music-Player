@@ -3,6 +3,7 @@ package com.jewelbox.player.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -29,6 +30,17 @@ class ServerPrefs(private val context: Context) {
 
     val serverId: Flow<String> = context.dataStore.data
         .map { prefs -> prefs[SERVER_ID_KEY].orEmpty() }
+
+    /**
+     * "Allow remote control": another client of the server (Gladys…) may
+     * command this player. On by default, per install.
+     */
+    val remoteControl: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[REMOTE_CONTROL_KEY] ?: true }
+
+    suspend fun setRemoteControl(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[REMOTE_CONTROL_KEY] = enabled }
+    }
 
     suspend fun setServerUrl(url: String) {
         context.dataStore.edit { prefs -> prefs[SERVER_URL_KEY] = url.trim() }
@@ -60,5 +72,6 @@ class ServerPrefs(private val context: Context) {
         val SERVER_URL_KEY = stringPreferencesKey("server_url")
         val SERVER_ID_KEY = stringPreferencesKey("server_id")
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
+        val REMOTE_CONTROL_KEY = booleanPreferencesKey("remote_control")
     }
 }

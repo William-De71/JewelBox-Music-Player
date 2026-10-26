@@ -34,8 +34,15 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /** Repeat cycle exposed to the UI without leaking Media3 constants. */
 enum class RepeatMode { OFF, ALL, ONE }
@@ -137,8 +144,12 @@ object PlayerConnection {
     /** Delay grouping a burst of queue edits (pick an album, skip twice…) into one PUT. */
     private const val QUEUE_SAVE_DELAY_MS = 1500L
 
-    /** Name the other devices see under "Reprendre depuis…". */
-    private val deviceLabel: String
+    // Remote control (Gladys…): live state reports, decided by LiveReporter
+    // (pure, tested); the command stream lives in RemoteControl.
+    private val liveReporter = LiveReporter()
+
+    /** Name the other devices (and the remote controllers) see. */
+    val deviceLabel: String
         get() = "JewelBox Android · ${Build.MODEL}"
 
     fun init(context: Context) {
@@ -153,6 +164,7 @@ object PlayerConnection {
                 override fun onEvents(player: Player, events: Player.Events) {
                     syncState(player)
                     syncServerQueue(player)
+                    reportLiveState(player)
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     // AUTO means the previous item played through to its end —
@@ -180,6 +192,15 @@ object PlayerConnection {
             syncState(c)
             restoreSavedQueue()
             startTicker()
+            RemoteControl.start(
+                scope,
+                onOpened = {
+                    // The controller just saw this player appear: tell it where playback is.
+                    liveReporter.forget()
+                    controller?.let(::reportLiveState)
+                },
+                onCommand = ::onRemoteCommand,
+            )
         }, MoreExecutors.directExecutor())
     }
 
@@ -378,6 +399,7 @@ object PlayerConnection {
         _position.value = PlaybackPosition(positionMs, durationMs)
         // Periodic progress for the server-side queue (the planner throttles it).
         syncServerQueue(c)
+        reportLiveState(c)
 
         // Checkpoint the resume position while playing, rarely enough not to
         // hammer DataStore: losing at most 5s of progress is imperceptible.
@@ -632,6 +654,127 @@ object PlayerConnection {
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
             else -> Player.REPEAT_MODE_OFF
         }
+    }
+
+    // ── Remote control ──────────────────────────────────────────────────────
+
+    private fun reportLiveState(player: Player) {
+        if (restoring) return
+        val item = player.currentMediaItem
+        val live = liveStateOf(
+            hasItem = item != null,
+            isPlaying = player.isPlaying,
+            trackId = item?.mediaId?.toIntOrNull(),
+            currentIndex = player.currentMediaItemIndex,
+            positionMs = player.currentPosition,
+            durationMs = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L,
+            volume = player.volume,
+            shuffle = player.shuffleModeEnabled,
+            repeat = _state.value.repeatMode,
+            deviceLabel = deviceLabel,
+        )
+        if (!liveReporter.update(live, SystemClock.elapsedRealtime() / 1000.0)) return
+        scope.launch { runCatching { ServiceLocator.queueSyncRepository.reportLiveState(live) } }
+    }
+
+    /** One command from the remote-control stream, already validated by the server. */
+    private fun onRemoteCommand(command: JsonObject) {
+        val c = controller ?: return
+        fun arg(name: String) = command[name]?.jsonPrimitive
+        when (command["command"]?.jsonPrimitive?.content) {
+            "play" -> play(c)
+            "pause" -> c.pause()
+            "toggle" -> if (c.isPlaying) c.pause() else play(c)
+            "next" -> next()
+            "previous" -> previous()
+            "seek" -> arg("position_sec")?.doubleOrNull?.let { c.seekTo((it * 1000).toLong()) }
+            "volume" -> arg("volume")?.doubleOrNull?.let { c.volume = (it / 100).toFloat().coerceIn(0f, 1f) }
+            "shuffle" -> arg("shuffle")?.booleanOrNull?.let { c.shuffleModeEnabled = it }
+            "repeat" -> c.repeatMode = when (arg("repeat")?.content) {
+                "all" -> Player.REPEAT_MODE_ALL
+                "one" -> Player.REPEAT_MODE_ONE
+                else -> Player.REPEAT_MODE_OFF
+            }
+            "play_index" -> arg("index")?.intOrNull?.takeIf { it in 0 until c.mediaItemCount }?.let { index ->
+                // On the current track, just make sure it plays (no restart).
+                if (index != c.currentMediaItemIndex) c.seekTo(index, 0L)
+                play(c)
+            }
+            "play_media" -> {
+                val media = command["media"]?.jsonObject ?: return
+                val type = media["type"]?.jsonPrimitive?.content ?: return
+                val id = media["id"]?.jsonPrimitive ?: return
+                playMedia(type, id.content, id.intOrNull, arg("mode")?.content ?: "replace")
+            }
+        }
+    }
+
+    private fun play(c: MediaController) {
+        if (c.mediaItemCount == 0) return
+        if (c.playbackState == Player.STATE_IDLE) c.prepare()
+        c.play()
+    }
+
+    private fun playMedia(type: String, key: String, id: Int?, mode: String) {
+        scope.launch {
+            val serverUrl = ServiceLocator.serverPrefs.serverUrl.first().ifBlank { return@launch }
+            val enqueue = mode == "next" || mode == "append"
+            runCatching {
+                when (type) {
+                    "album" -> {
+                        val album = ServiceLocator.albumRepository.album(id ?: return@launch)
+                        val playable = album.tracks.filter { it.hasFile }
+                        val first = playable.firstOrNull() ?: return@launch
+                        if (enqueue && enqueueItems(serverUrl, playable.map { mediaItem(serverUrl, album, it) }, mode == "next")) {
+                            return@launch
+                        }
+                        playAlbum(serverUrl, album, first.id)
+                    }
+                    "playlist" -> {
+                        val playlist = ServiceLocator.playlistRepository.playlist(id ?: return@launch)
+                        playOrEnqueue(serverUrl, playlist.tracks, mode) {
+                            playQueue(serverUrl, playlist.tracks, source = QueueSource.Playlist(playlist.id), sourceLabel = playlist.name)
+                        }
+                    }
+                    "smart" -> {
+                        val smart = ServiceLocator.playlistRepository.smartPlaylist(key)
+                        playOrEnqueue(serverUrl, smart.tracks, mode) {
+                            playQueue(serverUrl, smart.tracks, dynamicMix = key == DYNAMIC_MIX_KEY, source = QueueSource.Smart(key))
+                        }
+                    }
+                    "track" -> {
+                        val track = ServiceLocator.queueSyncRepository.track(id ?: return@launch)
+                        playOrEnqueue(serverUrl, listOf(track), mode) { playQueue(serverUrl, listOf(track)) }
+                    }
+                    "album_radio", "artist_radio" -> {
+                        val radio = ServiceLocator.queueSyncRepository.radio(
+                            albumId = if (type == "album_radio") id else null,
+                            artistId = if (type == "artist_radio") id else null,
+                        )
+                        val label = appContext?.getString(com.jewelbox.player.R.string.remote_radio_label, radio.seed?.name.orEmpty())
+                        playOrEnqueue(serverUrl, radio.tracks, mode) { playQueue(serverUrl, radio.tracks, sourceLabel = label) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun playOrEnqueue(serverUrl: String, tracks: List<QueueTrackDto>, mode: String, replace: () -> Unit) {
+        val playable = tracks.filter { it.hasFile }
+        if (playable.isEmpty()) return
+        val enqueue = mode == "next" || mode == "append"
+        if (enqueue && enqueueItems(serverUrl, playable.map { mediaItem(serverUrl, it) }, mode == "next")) return
+        replace()
+    }
+
+    /** "Play next" / "add to queue". False when nothing is loaded: the caller starts the queue instead. */
+    private fun enqueueItems(serverUrl: String, items: List<MediaItem>, next: Boolean): Boolean {
+        val c = controller ?: return true
+        if (c.mediaItemCount == 0) return false
+        if (queueServerUrl == null) queueServerUrl = serverUrl
+        if (next) c.addMediaItems(c.currentMediaItemIndex + 1, items) else c.addMediaItems(items)
+        saveQueue()
+        return true
     }
 
     private fun mediaItem(serverUrl: String, album: AlbumDto, track: TrackDto): MediaItem =

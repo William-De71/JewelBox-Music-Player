@@ -44,6 +44,8 @@ data class SettingsUiState(
     val validating: String? = null,
     /** Service name whose validation failed (not a JewelBox / unreachable). */
     val validationFailed: String? = null,
+    /** "Allow remote control" (Gladys…), saved at once, on by default. */
+    val remoteControl: Boolean = true,
 )
 
 class SettingsViewModel : ViewModel() {
@@ -63,6 +65,14 @@ class SettingsViewModel : ViewModel() {
             val storedId = prefs.serverId.first()
             _state.value = _state.value.copy(url = stored, knownServerId = storedId, loaded = true)
         }
+        prefs.remoteControl
+            .onEach { _state.value = _state.value.copy(remoteControl = it) }
+            .launchIn(viewModelScope)
+    }
+
+    fun setRemoteControl(enabled: Boolean) {
+        _state.value = _state.value.copy(remoteControl = enabled)
+        viewModelScope.launch { prefs.setRemoteControl(enabled) }
     }
 
     fun onUrlChange(value: String) {

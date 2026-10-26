@@ -4,6 +4,7 @@ import com.jewelbox.player.data.net.ApiClient
 import com.jewelbox.player.data.net.DeviceQueueDto
 import com.jewelbox.player.data.net.QueueDeviceDto
 import com.jewelbox.player.data.net.QueueStateBody
+import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.SaveQueueBody
 import kotlinx.coroutines.flow.first
 
@@ -30,6 +31,12 @@ class QueueSyncRepository(private val prefs: ServerPrefs) {
         api().updateQueueState(QueueStateBody(currentIndex, positionSec))
 
     suspend fun clear() = api().clearQueue()
+
+    suspend fun reportLiveState(state: com.jewelbox.player.playback.LiveState) = api().reportLiveState(state)
+
+    suspend fun track(trackId: Int): QueueTrackDto = api().track(trackId)
+
+    suspend fun radio(albumId: Int? = null, artistId: Int? = null) = api().radio(albumId, artistId)
 
     /** Queues left by the other devices, most recent first (the server excludes this one). */
     suspend fun otherDevices(): List<QueueDeviceDto> = api().queueDevices().data

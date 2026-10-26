@@ -120,6 +120,10 @@
     <string name="address_saved">Adresse enregistrée</string>
 
     <!-- Découverte mDNS -->
+    <string name="remote_control_title">Contrôle à distance</string>
+    <string name="remote_control_label">Autoriser le contrôle à distance</string>
+    <string name="remote_control_description">Un autre client du serveur, comme Gladys, peut piloter ce lecteur : lecture, pause, piste suivante, volume, lancer un album. Tant que l’application est ouverte ou joue.</string>
+    <string name="remote_radio_label">Radio · %1$s</string>
     <string name="discovery_title">Découverte du réseau</string>
     <string name="discovery_scan">Rechercher sur le réseau</string>
     <string name="discovery_stop">Arrêter la recherche</string>

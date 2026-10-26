@@ -309,3 +309,15 @@ data class DeviceQueueDto(
     val tracks: List<QueueTrackDto> = emptyList(),
     @SerialName("source_label") val sourceLabel: String? = null,
 )
+
+/** GET /api/player/radio: the seed and a queue-shaped draw around it. */
+@Serializable
+data class RadioDto(
+    val seed: RadioSeedDto? = null,
+    val tracks: List<QueueTrackDto> = emptyList(),
+)
+
+@Serializable
+data class RadioSeedDto(
+    val name: String = "",
+)

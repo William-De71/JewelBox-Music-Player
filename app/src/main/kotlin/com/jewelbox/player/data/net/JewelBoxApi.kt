@@ -136,6 +136,21 @@ interface JewelBoxApi {
     @DELETE("api/player/queue")
     suspend fun clearQueue()
 
+    /** Live state for the remote control (server >= 1.18; older ones keep the position, ignore the rest). */
+    @PATCH("api/player/queue/state")
+    suspend fun reportLiveState(@Body body: com.jewelbox.player.playback.LiveState)
+
+    /** One track, queue-shaped (server >= 1.18): a remote "play this track". */
+    @GET("api/player/tracks/{id}")
+    suspend fun track(@Path("id") id: Int): QueueTrackDto
+
+    /** Radio around an album or an artist (server >= 1.16). */
+    @GET("api/player/radio")
+    suspend fun radio(
+        @Query("album_id") albumId: Int? = null,
+        @Query("artist_id") artistId: Int? = null,
+    ): RadioDto
+
     /** Queues left by the OTHER devices, most recent first. */
     @GET("api/player/queue/devices")
     suspend fun queueDevices(): QueueDevicesResponse
