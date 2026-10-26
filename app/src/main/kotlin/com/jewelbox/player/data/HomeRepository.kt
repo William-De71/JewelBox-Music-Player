@@ -27,7 +27,7 @@ class HomeRepository(private val prefs: ServerPrefs) {
         requireApi().home()
 
     /** The [count] most recently added owned albums, newest first (home "latest" row). */
-    suspend fun latestAlbums(count: Int = 5): List<AlbumDto> =
+    suspend fun latestAlbums(count: Int = 10): List<AlbumDto> =
         requireApi().albums(page = 1, limit = count, sort = "created_at", order = "desc").data
 
     /** POST /api/player/history for an album or playlist, keyed by [itemId]. */
