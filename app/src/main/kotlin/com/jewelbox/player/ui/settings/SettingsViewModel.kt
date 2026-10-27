@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.ApiClient
 import com.jewelbox.player.data.net.DiscoveredServer
+import com.jewelbox.player.playback.ReplayGainMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,8 @@ data class SettingsUiState(
     val validationFailed: String? = null,
     /** "Allow remote control" (Gladys…), saved at once, on by default. */
     val remoteControl: Boolean = true,
+    /** Volume normalization from the ReplayGain tags, saved at once. */
+    val replayGain: ReplayGainMode = ReplayGainMode.DEFAULT,
 )
 
 class SettingsViewModel : ViewModel() {
@@ -68,11 +71,19 @@ class SettingsViewModel : ViewModel() {
         prefs.remoteControl
             .onEach { _state.value = _state.value.copy(remoteControl = it) }
             .launchIn(viewModelScope)
+        prefs.replayGain
+            .onEach { _state.value = _state.value.copy(replayGain = it) }
+            .launchIn(viewModelScope)
     }
 
     fun setRemoteControl(enabled: Boolean) {
         _state.value = _state.value.copy(remoteControl = enabled)
         viewModelScope.launch { prefs.setRemoteControl(enabled) }
+    }
+
+    fun setReplayGain(mode: ReplayGainMode) {
+        _state.value = _state.value.copy(replayGain = mode)
+        viewModelScope.launch { prefs.setReplayGain(mode) }
     }
 
     fun onUrlChange(value: String) {

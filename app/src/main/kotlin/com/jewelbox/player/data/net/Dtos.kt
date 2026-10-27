@@ -57,6 +57,18 @@ data class LabelDto(
     val name: String,
 )
 
+/**
+ * ReplayGain tags of a track's file, read by the server's audio scan (server
+ * >= 1.20, absent before): gains in dB, peaks as linear sample peaks.
+ */
+@Serializable
+data class ReplayGainDto(
+    @SerialName("track_gain") val trackGain: Double? = null,
+    @SerialName("track_peak") val trackPeak: Double? = null,
+    @SerialName("album_gain") val albumGain: Double? = null,
+    @SerialName("album_peak") val albumPeak: Double? = null,
+)
+
 @Serializable
 data class TrackDto(
     val id: Int,
@@ -66,6 +78,7 @@ data class TrackDto(
     @SerialName("has_file") val hasFile: Boolean = false,
     @SerialName("play_count") val playCount: Int = 0,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
+    val replaygain: ReplayGainDto? = null,
 )
 
 @Serializable
@@ -107,6 +120,7 @@ data class QueueTrackDto(
     @SerialName("album_title") val albumTitle: String = "",
     @SerialName("artist_name") val artistName: String = "",
     @SerialName("cover_url") val coverUrl: String? = null,
+    val replaygain: ReplayGainDto? = null,
 )
 
 /** Row of GET /api/playlists — counts and duration are aggregated server-side. */

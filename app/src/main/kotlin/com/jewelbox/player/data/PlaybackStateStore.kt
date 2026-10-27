@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.jewelbox.player.data.net.ReplayGainDto
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -24,6 +25,7 @@ data class SavedTrack(
     @SerialName("album_title") val albumTitle: String,
     @SerialName("cover_url") val coverUrl: String? = null,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
+    val replaygain: ReplayGainDto? = null,
 )
 
 /**

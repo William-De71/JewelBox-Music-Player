@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.jewelbox.player.playback.ReplayGainMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -42,6 +43,14 @@ class ServerPrefs(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[REMOTE_CONTROL_KEY] = enabled }
     }
 
+    /** Volume normalization from the ReplayGain tags: off, track or album (default). */
+    val replayGain: Flow<ReplayGainMode> = context.dataStore.data
+        .map { prefs -> ReplayGainMode.fromKey(prefs[REPLAYGAIN_KEY]) }
+
+    suspend fun setReplayGain(mode: ReplayGainMode) {
+        context.dataStore.edit { prefs -> prefs[REPLAYGAIN_KEY] = mode.key }
+    }
+
     suspend fun setServerUrl(url: String) {
         context.dataStore.edit { prefs -> prefs[SERVER_URL_KEY] = url.trim() }
     }
@@ -73,5 +82,6 @@ class ServerPrefs(private val context: Context) {
         val SERVER_ID_KEY = stringPreferencesKey("server_id")
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
         val REMOTE_CONTROL_KEY = booleanPreferencesKey("remote_control")
+        val REPLAYGAIN_KEY = stringPreferencesKey("replaygain")
     }
 }

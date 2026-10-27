@@ -18,6 +18,8 @@ un dépôt séparé (`jewelbox-music-library`).
   shuffle, repeat (off/tout/une), swipe gauche/droite pour changer de piste.
 - **Scrobbling Last.fm** + compteur de lectures : mêmes règles que la PWA ; la session
   Last.fm est stockée côté serveur et partagée avec elle (rien à configurer dans l'app).
+- **Normalisation du volume** (ReplayGain, serveur ≥ 1.20) : par album (défaut), par
+  piste ou désactivée, dans les Réglages ; même règle que la PWA (baisse seulement).
 - **Réglages** : adresse du serveur (`http://ip:3001`), bouton *Tester* (`GET /api/health`),
   persistée via DataStore.
 - **Découverte du serveur (mDNS)** : *Réglages → Découverte du réseau* liste les serveurs

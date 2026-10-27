@@ -19,6 +19,7 @@ import com.jewelbox.player.data.SavedTrack
 import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.DeviceQueueDto
 import com.jewelbox.player.data.net.QueueTrackDto
+import com.jewelbox.player.data.net.ReplayGainDto
 import com.jewelbox.player.data.net.TrackDto
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.ui.playlists.DYNAMIC_MIX_KEY
@@ -88,6 +89,15 @@ object PlayerConnection {
 
     /** MediaMetadata extras key carrying the track's favorite flag through Media3. */
     private const val EXTRA_IS_FAVORITE = "jewelbox.is_favorite"
+
+    /** MediaMetadata extras keys carrying the track's ReplayGain (dB), when tagged. */
+    private const val EXTRA_RG_TRACK_GAIN = "jewelbox.rg_track_gain"
+    private const val EXTRA_RG_ALBUM_GAIN = "jewelbox.rg_album_gain"
+
+    // ReplayGain rides on the player volume: userVolume is what the user (the
+    // remote controller) set, the player gets it scaled for the current track.
+    private var userVolume = 1f
+    private var replayGainMode = ReplayGainMode.DEFAULT
 
     /** Ticker runs every second; checkpoint the resume position every 5th one. */
     private const val POSITION_SAVE_INTERVAL_TICKS = 5
@@ -173,6 +183,7 @@ object PlayerConnection {
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && endedId != null) {
                         onTrackEnded(endedId, queueExhausted = false)
                     }
+                    applyVolume(c)
                     onTrackStarted(mediaItem)
                     trimDynamicMix(c)
                     saveQueue()
@@ -191,6 +202,12 @@ object PlayerConnection {
                 }
             })
             syncState(c)
+            scope.launch {
+                ServiceLocator.serverPrefs.replayGain.collect { mode ->
+                    replayGainMode = mode
+                    controller?.let(::applyVolume)
+                }
+            }
             restoreSavedQueue()
             startTicker()
             RemoteControl.start(
@@ -696,6 +713,14 @@ object PlayerConnection {
         }
     }
 
+    /** Player volume = user volume × the current track's ReplayGain factor. */
+    private fun applyVolume(player: Player) {
+        val extras = player.currentMediaItem?.mediaMetadata?.extras
+        fun gain(key: String) = extras?.takeIf { it.containsKey(key) }?.getDouble(key)
+        val volume = userVolume * replayGainFactor(gain(EXTRA_RG_TRACK_GAIN), gain(EXTRA_RG_ALBUM_GAIN), replayGainMode)
+        if (player.volume != volume) player.volume = volume
+    }
+
     // ── Remote control ──────────────────────────────────────────────────────
 
     private fun reportLiveState(player: Player) {
@@ -708,7 +733,7 @@ object PlayerConnection {
             currentIndex = player.currentMediaItemIndex,
             positionMs = player.currentPosition,
             durationMs = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L,
-            volume = player.volume,
+            volume = userVolume,
             shuffle = player.shuffleModeEnabled,
             repeat = _state.value.repeatMode,
             deviceLabel = deviceLabel,
@@ -728,7 +753,10 @@ object PlayerConnection {
             "next" -> next()
             "previous" -> previous()
             "seek" -> arg("position_sec")?.doubleOrNull?.let { c.seekTo((it * 1000).toLong()) }
-            "volume" -> arg("volume")?.doubleOrNull?.let { c.volume = (it / 100).toFloat().coerceIn(0f, 1f) }
+            "volume" -> arg("volume")?.doubleOrNull?.let {
+                userVolume = (it / 100).toFloat().coerceIn(0f, 1f)
+                applyVolume(c)
+            }
             "shuffle" -> arg("shuffle")?.booleanOrNull?.let { c.shuffleModeEnabled = it }
             "repeat" -> c.repeatMode = when (arg("repeat")?.content) {
                 "all" -> Player.REPEAT_MODE_ALL
@@ -826,6 +854,7 @@ object PlayerConnection {
             albumTitle = album.title,
             coverUrl = album.coverUrl,
             isFavorite = track.isFavorite,
+            replayGain = track.replaygain,
         )
 
     private fun mediaItem(serverUrl: String, track: QueueTrackDto): MediaItem =
@@ -837,6 +866,7 @@ object PlayerConnection {
             albumTitle = track.albumTitle,
             coverUrl = track.coverUrl,
             isFavorite = track.isFavorite,
+            replayGain = track.replaygain,
         )
 
     private fun mediaItem(serverUrl: String, track: SavedTrack): MediaItem =
@@ -848,6 +878,7 @@ object PlayerConnection {
             albumTitle = track.albumTitle,
             coverUrl = track.coverUrl,
             isFavorite = track.isFavorite,
+            replayGain = track.replaygain,
         )
 
     private fun mediaItem(
@@ -858,16 +889,22 @@ object PlayerConnection {
         albumTitle: String,
         coverUrl: String?,
         isFavorite: Boolean,
+        replayGain: ReplayGainDto?,
     ): MediaItem {
         // Remembered so the queue can be serialized for the next app start:
         // MediaItem alone doesn't carry back the raw (relative) cover URL.
-        savedTracks[trackId] = SavedTrack(trackId, title, artistName, albumTitle, coverUrl, isFavorite)
+        savedTracks[trackId] = SavedTrack(trackId, title, artistName, albumTitle, coverUrl, isFavorite, replayGain)
         val streamUrl = serverUrl.trimEnd('/') + "/api/player/tracks/$trackId/stream"
+        val extras = Bundle().apply {
+            putBoolean(EXTRA_IS_FAVORITE, isFavorite)
+            replayGain?.trackGain?.let { putDouble(EXTRA_RG_TRACK_GAIN, it) }
+            replayGain?.albumGain?.let { putDouble(EXTRA_RG_ALBUM_GAIN, it) }
+        }
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artistName)
             .setAlbumTitle(albumTitle)
-            .setExtras(Bundle().apply { putBoolean(EXTRA_IS_FAVORITE, isFavorite) })
+            .setExtras(extras)
             .apply {
                 resolveCover(serverUrl, coverUrl)?.let { setArtworkUri(Uri.parse(it)) }
             }
