@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
  */
 
 /** What this player supports beyond play / pause / next / previous (no mute: the phone has its own). */
-val REMOTE_CAPABILITIES = listOf("seek", "volume", "shuffle", "repeat", "queue", "play_media", "append")
+val REMOTE_CAPABILITIES = listOf("seek", "volume", "shuffle", "repeat", "queue", "play_media", "append", "sleep_timer")
 
 /** While playing, a report at least this often: without a stream the server forgets a player silent for 90 s. */
 const val LIVE_HEARTBEAT_SEC = 30.0
@@ -76,6 +76,7 @@ data class LiveState(
     val shuffle: Boolean,
     val repeat: String,
     @SerialName("device_label") val deviceLabel: String,
+    @SerialName("sleep_timer") val sleepTimer: LiveSleepTimer?,
 )
 
 /** Builds the live state from the player's values (volume 0–1, positions in ms). */
@@ -90,6 +91,7 @@ fun liveStateOf(
     shuffle: Boolean,
     repeat: RepeatMode,
     deviceLabel: String,
+    sleepTimer: SleepTimer? = null,
 ): LiveState = LiveState(
     playbackState = when {
         !hasItem -> "idle"
@@ -104,6 +106,7 @@ fun liveStateOf(
     shuffle = shuffle,
     repeat = repeat.name.lowercase(),
     deviceLabel = deviceLabel,
+    sleepTimer = sleepTimerLive(sleepTimer),
 )
 
 /**

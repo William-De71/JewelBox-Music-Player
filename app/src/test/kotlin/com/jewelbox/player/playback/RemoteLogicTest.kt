@@ -55,7 +55,7 @@ class RemoteLogicTest {
     @Test
     fun `the live state of a playing player`() {
         assertEquals(
-            LiveState("playing", 7, 2, 12.3, 200.0, 50, false, "all", "Pixel"),
+            LiveState("playing", 7, 2, 12.3, 200.0, 50, false, "all", "Pixel", null),
             liveStateOf(true, true, 7, 2, 12_345, 200_000, 0.5f, false, RepeatMode.ALL, "Pixel"),
         )
     }

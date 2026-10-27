@@ -99,6 +99,12 @@ object PlayerConnection {
     private var userVolume = 1f
     private var replayGainMode = ReplayGainMode.DEFAULT
 
+    // Sleep timer (SleepTimer.kt); sleepFade scales the volume over its last seconds.
+    private val _sleepTimer = MutableStateFlow<SleepTimer?>(null)
+    val sleepTimer: StateFlow<SleepTimer?> = _sleepTimer.asStateFlow()
+    private var sleepFade = 1f
+    private var sleepJob: Job? = null
+
     /** Ticker runs every second; checkpoint the resume position every 5th one. */
     private const val POSITION_SAVE_INTERVAL_TICKS = 5
 
@@ -199,6 +205,15 @@ object PlayerConnection {
                 // right away rather than waiting for the next tick.
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (!isPlaying) saveQueue()
+                }
+
+                // Sleep timer "end of track": the player paused itself there.
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM &&
+                        _sleepTimer.value == SleepTimer.EndOfTrack
+                    ) {
+                        setSleepTimer(null)
+                    }
                 }
             })
             syncState(c)
@@ -717,8 +732,45 @@ object PlayerConnection {
     private fun applyVolume(player: Player) {
         val extras = player.currentMediaItem?.mediaMetadata?.extras
         fun gain(key: String) = extras?.takeIf { it.containsKey(key) }?.getDouble(key)
-        val volume = userVolume * replayGainFactor(gain(EXTRA_RG_TRACK_GAIN), gain(EXTRA_RG_ALBUM_GAIN), replayGainMode)
+        val volume = userVolume * sleepFade *
+            replayGainFactor(gain(EXTRA_RG_TRACK_GAIN), gain(EXTRA_RG_ALBUM_GAIN), replayGainMode)
         if (player.volume != volume) player.volume = volume
+    }
+
+    /**
+     * Starts, replaces or (null) cancels the sleep timer. A timed one fades
+     * out and pauses, counting on while paused; "end of track" has the player
+     * itself pause at the end of the current item.
+     */
+    fun setSleepTimer(timer: SleepTimer?) {
+        sleepJob?.cancel()
+        sleepJob = null
+        _sleepTimer.value = timer
+        sleepFade = 1f
+        val c = controller ?: return
+        applyVolume(c)
+        c.sendCustomCommand(
+            PlaybackService.PAUSE_AT_END_COMMAND,
+            Bundle().apply { putBoolean(PlaybackService.PAUSE_AT_END_ENABLED, timer == SleepTimer.EndOfTrack) },
+        )
+        reportLiveState(c)
+        if (timer !is SleepTimer.Timed) return
+        sleepJob = scope.launch {
+            while (isActive) {
+                val now = System.currentTimeMillis()
+                if (now >= timer.endsAtMs) {
+                    controller?.pause()
+                    setSleepTimer(null)
+                    return@launch
+                }
+                val fade = sleepFadeFactor(timer, now)
+                if (fade != sleepFade) {
+                    sleepFade = fade
+                    controller?.let(::applyVolume)
+                }
+                delay(250)
+            }
+        }
     }
 
     // ── Remote control ──────────────────────────────────────────────────────
@@ -737,6 +789,7 @@ object PlayerConnection {
             shuffle = player.shuffleModeEnabled,
             repeat = _state.value.repeatMode,
             deviceLabel = deviceLabel,
+            sleepTimer = _sleepTimer.value,
         )
         if (!liveReporter.update(live, SystemClock.elapsedRealtime() / 1000.0)) return
         scope.launch { runCatching { ServiceLocator.queueSyncRepository.reportLiveState(live) } }
@@ -758,6 +811,9 @@ object PlayerConnection {
                 applyVolume(c)
             }
             "shuffle" -> arg("shuffle")?.booleanOrNull?.let { c.shuffleModeEnabled = it }
+            "sleep_timer" -> setSleepTimer(
+                sleepTimerFrom(arg("minutes")?.intOrNull, arg("end_of_track")?.booleanOrNull == true, System.currentTimeMillis()),
+            )
             "repeat" -> c.repeatMode = when (arg("repeat")?.content) {
                 "all" -> Player.REPEAT_MODE_ALL
                 "one" -> Player.REPEAT_MODE_ONE

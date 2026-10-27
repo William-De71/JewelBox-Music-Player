@@ -2,11 +2,16 @@ package com.jewelbox.player.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 
 /**
  * Foreground media service hosting the ExoPlayer instance. Media3 wires the
@@ -36,8 +41,39 @@ class PlaybackService : MediaSessionService() {
         }
 
         mediaSession = MediaSession.Builder(this, player)
+            .setCallback(SessionCallback(player))
             .apply { sessionActivity?.let(::setSessionActivity) }
             .build()
+    }
+
+    /**
+     * The app's own controller may also ask the player to pause at the end of
+     * the current item (sleep timer "end of track"): an ExoPlayer setting the
+     * Player interface — hence MediaController — doesn't carry.
+     */
+    private class SessionCallback(private val player: ExoPlayer) : MediaSession.Callback {
+        override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+            if (controller.packageName != session.token.packageName) return super.onConnect(session, controller)
+            val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(PAUSE_AT_END_COMMAND)
+                .build()
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(commands)
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            if (customCommand.customAction != PAUSE_AT_END_ACTION) {
+                return super.onCustomCommand(session, controller, customCommand, args)
+            }
+            player.pauseAtEndOfMediaItems = args.getBoolean(PAUSE_AT_END_ENABLED)
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
@@ -58,5 +94,11 @@ class PlaybackService : MediaSessionService() {
         }
         mediaSession = null
         super.onDestroy()
+    }
+
+    companion object {
+        const val PAUSE_AT_END_ACTION = "jewelbox.pause_at_end"
+        const val PAUSE_AT_END_ENABLED = "enabled"
+        val PAUSE_AT_END_COMMAND = SessionCommand(PAUSE_AT_END_ACTION, Bundle.EMPTY)
     }
 }

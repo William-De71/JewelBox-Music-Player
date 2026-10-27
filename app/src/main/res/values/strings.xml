@@ -124,6 +124,11 @@
     <string name="remote_control_label">Autoriser le contrôle à distance</string>
     <string name="remote_control_description">Un autre client du serveur, comme Gladys, peut piloter ce lecteur : lecture, pause, piste suivante, volume, lancer un album. Tant que l’application est ouverte ou joue.</string>
     <string name="remote_radio_label">Radio · %1$s</string>
+    <string name="sleep_timer_title">Minuteur de sommeil</string>
+    <string name="sleep_timer_minutes">%1$d min</string>
+    <string name="sleep_timer_end_of_track">Fin de la piste en cours</string>
+    <string name="sleep_timer_end_of_track_short">fin de piste</string>
+    <string name="sleep_timer_cancel">Annuler le minuteur</string>
     <string name="replaygain_title">Normalisation du volume</string>
     <string name="replaygain_off">Désactivée</string>
     <string name="replaygain_track">Par piste</string>

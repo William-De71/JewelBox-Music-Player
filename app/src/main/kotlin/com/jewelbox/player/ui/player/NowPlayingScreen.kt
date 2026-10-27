@@ -77,6 +77,7 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
+                actions = { if (state.hasItem) SleepTimerAction() },
             )
         },
     ) { padding ->
