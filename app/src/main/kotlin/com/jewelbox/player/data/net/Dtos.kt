@@ -333,6 +333,26 @@ data class DeviceQueueDto(
     @SerialName("source_label") val sourceLabel: String? = null,
 )
 
+/**
+ * GET /api/player/tracks/:id/lyrics (server >= 1.20): synced lines when
+ * known (a .lrc next to the file, or LRCLIB), plain text otherwise.
+ */
+@Serializable
+data class LyricsDto(
+    val source: String? = null,
+    val instrumental: Boolean = false,
+    val synced: Boolean = false,
+    val lines: List<LyricLineDto>? = null,
+    val plain: String? = null,
+)
+
+@Serializable
+data class LyricLineDto(
+    /** Seconds from the start of the track. */
+    val time: Double,
+    val text: String = "",
+)
+
 /** GET /api/player/radio: the seed and a queue-shaped draw around it. */
 @Serializable
 data class RadioDto(

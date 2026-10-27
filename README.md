@@ -23,6 +23,9 @@ un dépôt séparé (`jewelbox-music-library`).
   (accueil, Réglages) qui marche sans serveur. Wi-Fi seulement par défaut (réglable).
   Les écoutes faites sans serveur sont gardées puis envoyées à son retour, avec leur
   vraie date (serveur ≥ 1.20 ; Last.fm jusqu'à 13 jours).
+- **Paroles** (serveur ≥ 1.20) : bouton du grand lecteur, synchronisées quand elles existent.
+- **Fondu entre les morceaux** (Réglages, désactivé par défaut) : le son baisse et remonte
+  entre deux morceaux, jamais entre deux pistes qui se suivent sur un album.
 - **Normalisation du volume** (ReplayGain, serveur ≥ 1.20) : par album (défaut), par
   piste ou désactivée, dans les Réglages ; même règle que la PWA (baisse seulement).
 - **Réglages** : adresse du serveur (`http://ip:3001`), bouton *Tester* (`GET /api/health`),

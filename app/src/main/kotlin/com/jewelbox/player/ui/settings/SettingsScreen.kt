@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jewelbox.player.R
 import com.jewelbox.player.data.net.DiscoveredServer
 import com.jewelbox.player.playback.ReplayGainMode
+import com.jewelbox.player.playback.TRANSITION_FADE_CHOICES
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -158,11 +159,47 @@ fun SettingsScreen(
             HorizontalDivider()
             Spacer(Modifier.height(24.dp))
 
+            TransitionFadeSection(selected = state.transitionFade, onSelect = vm::setTransitionFade)
+
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(24.dp))
+
             Text(stringResource(R.string.offline_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onOpenDownloads) { Text(stringResource(R.string.offline_manage)) }
         }
     }
+}
+
+@Composable
+private fun TransitionFadeSection(selected: Int, onSelect: (Int) -> Unit) {
+    Text(stringResource(R.string.transition_fade_title), style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(8.dp))
+    Column(Modifier.selectableGroup()) {
+        TRANSITION_FADE_CHOICES.forEach { seconds ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(selected = seconds == selected, onClick = { onSelect(seconds) }, role = Role.RadioButton)
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = seconds == selected, onClick = null)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    if (seconds == 0) stringResource(R.string.transition_fade_off)
+                    else stringResource(R.string.transition_fade_seconds, seconds),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.transition_fade_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

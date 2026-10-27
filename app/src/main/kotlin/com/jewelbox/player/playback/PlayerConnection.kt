@@ -95,6 +95,14 @@ object PlayerConnection {
     private const val EXTRA_RG_TRACK_GAIN = "jewelbox.rg_track_gain"
     private const val EXTRA_RG_ALBUM_GAIN = "jewelbox.rg_album_gain"
 
+    /** Album id and track position, to tell tracks that follow each other on an album. */
+    private const val EXTRA_ALBUM_ID = "jewelbox.album_id"
+    private const val EXTRA_TRACK_POSITION = "jewelbox.track_position"
+
+    // Soft transition between tracks (TransitionFade.kt), seconds; 0 = off.
+    private var transitionFadeSec = 0
+    private var transitionFactor = 1f
+
     // ReplayGain rides on the player volume: userVolume is what the user (the
     // remote controller) set, the player gets it scaled for the current track.
     private var userVolume = 1f
@@ -218,6 +226,14 @@ object PlayerConnection {
                 }
             })
             syncState(c)
+            scope.launch {
+                ServiceLocator.serverPrefs.transitionFade.collect { seconds ->
+                    transitionFadeSec = seconds
+                    transitionFactor = 1f
+                    controller?.let(::applyVolume)
+                }
+            }
+            startTransitionFade()
             scope.launch {
                 ServiceLocator.serverPrefs.replayGain.collect { mode ->
                     replayGainMode = mode
@@ -733,9 +749,46 @@ object PlayerConnection {
     private fun applyVolume(player: Player) {
         val extras = player.currentMediaItem?.mediaMetadata?.extras
         fun gain(key: String) = extras?.takeIf { it.containsKey(key) }?.getDouble(key)
-        val volume = userVolume * sleepFade *
+        val volume = userVolume * sleepFade * transitionFactor *
             replayGainFactor(gain(EXTRA_RG_TRACK_GAIN), gain(EXTRA_RG_ALBUM_GAIN), replayGainMode)
         if (player.volume != volume) player.volume = volume
+    }
+
+    /**
+     * Follows the position closely (10 times a second) while a fade is set
+     * and something plays: the 1 s ticker is too coarse for a 2 s fade.
+     */
+    private fun startTransitionFade() {
+        scope.launch {
+            while (isActive) {
+                val c = controller
+                if (c == null || transitionFadeSec == 0 || !c.isPlaying) {
+                    delay(500)
+                    continue
+                }
+                val factor = transitionFadeFactor(
+                    positionMs = c.currentPosition,
+                    durationMs = c.duration.takeIf { it != C.TIME_UNSET } ?: 0L,
+                    fadeSec = transitionFadeSec,
+                    fadeIn = c.hasPreviousMediaItem() && !followsItems(c, c.previousMediaItemIndex, c.currentMediaItemIndex),
+                    fadeOut = c.hasNextMediaItem() && !followsItems(c, c.currentMediaItemIndex, c.nextMediaItemIndex),
+                )
+                if (kotlin.math.abs(factor - transitionFactor) >= 0.01f || (factor == 1f && transitionFactor != 1f)) {
+                    transitionFactor = factor
+                    applyVolume(c)
+                }
+                delay(100)
+            }
+        }
+    }
+
+    private fun followsItems(player: Player, before: Int, after: Int): Boolean {
+        if (before < 0 || after < 0 || before >= player.mediaItemCount || after >= player.mediaItemCount) return false
+        fun extras(index: Int) = player.getMediaItemAt(index).mediaMetadata.extras
+        fun Bundle?.int(key: String) = this?.takeIf { it.containsKey(key) }?.getInt(key)
+        val a = extras(before)
+        val b = extras(after)
+        return followsOnAlbum(a.int(EXTRA_ALBUM_ID), a.int(EXTRA_TRACK_POSITION), b.int(EXTRA_ALBUM_ID), b.int(EXTRA_TRACK_POSITION))
     }
 
     /**
@@ -918,6 +971,8 @@ object PlayerConnection {
             isFavorite = track.isFavorite,
             replayGain = track.replaygain,
             scope = scope,
+            albumId = album.id,
+            trackPosition = track.position,
         )
 
     private fun mediaItem(
@@ -935,6 +990,8 @@ object PlayerConnection {
             isFavorite = track.isFavorite,
             replayGain = track.replaygain,
             scope = scope,
+            albumId = track.albumId.takeIf { it > 0 },
+            trackPosition = track.position,
         )
 
     private fun mediaItem(serverUrl: String, track: SavedTrack): MediaItem =
@@ -962,6 +1019,8 @@ object PlayerConnection {
         isFavorite: Boolean,
         replayGain: ReplayGainDto?,
         scope: String?,
+        albumId: Int? = null,
+        trackPosition: Int? = null,
     ): MediaItem {
         // Remembered so the queue can be serialized for the next app start:
         // MediaItem alone doesn't carry back the raw (relative) cover URL.
@@ -971,6 +1030,8 @@ object PlayerConnection {
             putBoolean(EXTRA_IS_FAVORITE, isFavorite)
             replayGain?.trackGain?.let { putDouble(EXTRA_RG_TRACK_GAIN, it) }
             replayGain?.albumGain?.let { putDouble(EXTRA_RG_ALBUM_GAIN, it) }
+            albumId?.let { putInt(EXTRA_ALBUM_ID, it) }
+            trackPosition?.let { putInt(EXTRA_TRACK_POSITION, it) }
         }
         val metadata = MediaMetadata.Builder()
             .setTitle(title)

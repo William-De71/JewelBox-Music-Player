@@ -49,6 +49,8 @@ data class SettingsUiState(
     val remoteControl: Boolean = true,
     /** Volume normalization from the ReplayGain tags, saved at once. */
     val replayGain: ReplayGainMode = ReplayGainMode.DEFAULT,
+    /** Soft transition between tracks, seconds (0: off). */
+    val transitionFade: Int = 0,
 )
 
 class SettingsViewModel : ViewModel() {
@@ -74,11 +76,19 @@ class SettingsViewModel : ViewModel() {
         prefs.replayGain
             .onEach { _state.value = _state.value.copy(replayGain = it) }
             .launchIn(viewModelScope)
+        prefs.transitionFade
+            .onEach { _state.value = _state.value.copy(transitionFade = it) }
+            .launchIn(viewModelScope)
     }
 
     fun setRemoteControl(enabled: Boolean) {
         _state.value = _state.value.copy(remoteControl = enabled)
         viewModelScope.launch { prefs.setRemoteControl(enabled) }
+    }
+
+    fun setTransitionFade(seconds: Int) {
+        _state.value = _state.value.copy(transitionFade = seconds)
+        viewModelScope.launch { prefs.setTransitionFade(seconds) }
     }
 
     fun setReplayGain(mode: ReplayGainMode) {

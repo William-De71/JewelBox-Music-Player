@@ -5,9 +5,11 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jewelbox.player.playback.ReplayGainMode
+import com.jewelbox.player.playback.TRANSITION_FADE_CHOICES
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -51,6 +53,14 @@ class ServerPrefs(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[DOWNLOAD_ON_MOBILE_KEY] = allowed }
     }
 
+    /** Soft transition between tracks, in seconds (0: off, the default). */
+    val transitionFade: Flow<Int> = context.dataStore.data
+        .map { prefs -> prefs[TRANSITION_FADE_KEY]?.takeIf { it in TRANSITION_FADE_CHOICES } ?: 0 }
+
+    suspend fun setTransitionFade(seconds: Int) {
+        context.dataStore.edit { prefs -> prefs[TRANSITION_FADE_KEY] = seconds }
+    }
+
     /** Volume normalization from the ReplayGain tags: off, track or album (default). */
     val replayGain: Flow<ReplayGainMode> = context.dataStore.data
         .map { prefs -> ReplayGainMode.fromKey(prefs[REPLAYGAIN_KEY]) }
@@ -92,5 +102,6 @@ class ServerPrefs(private val context: Context) {
         val REMOTE_CONTROL_KEY = booleanPreferencesKey("remote_control")
         val REPLAYGAIN_KEY = stringPreferencesKey("replaygain")
         val DOWNLOAD_ON_MOBILE_KEY = booleanPreferencesKey("download_on_mobile")
+        val TRANSITION_FADE_KEY = intPreferencesKey("transition_fade")
     }
 }

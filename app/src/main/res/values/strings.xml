@@ -154,6 +154,15 @@
     <string name="downloads_channel">Téléchargements</string>
     <string name="downloads_channel_description">Progression des albums et playlists téléchargés pour l’écoute hors-ligne</string>
     <string name="downloads_notification">Téléchargement pour l’écoute hors-ligne</string>
+    <string name="transition_fade_title">Fondu entre les morceaux</string>
+    <string name="transition_fade_off">Désactivé</string>
+    <string name="transition_fade_seconds">%1$d secondes</string>
+    <string name="transition_fade_description">Le son baisse à la fin d’un morceau et remonte au début du suivant. Jamais entre deux pistes qui se suivent sur un même album : un album live reste sans blanc.</string>
+    <string name="lyrics_title">Paroles</string>
+    <string name="lyrics_loading">Recherche des paroles…</string>
+    <string name="lyrics_none">Pas de paroles trouvées pour ce titre.</string>
+    <string name="lyrics_instrumental">Morceau instrumental.</string>
+    <string name="lyrics_unavailable">Paroles indisponibles (serveur injoignable ou antérieur à la 1.20).</string>
     <string name="sleep_timer_title">Minuteur de sommeil</string>
     <string name="sleep_timer_minutes">%1$d min</string>
     <string name="sleep_timer_end_of_track">Fin de la piste en cours</string>

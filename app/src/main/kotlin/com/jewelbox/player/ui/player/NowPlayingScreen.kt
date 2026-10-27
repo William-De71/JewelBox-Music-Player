@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -67,6 +68,7 @@ import com.jewelbox.player.playback.RepeatMode
 fun NowPlayingScreen(onBack: () -> Unit) {
     val state by PlayerConnection.state.collectAsStateWithLifecycle()
     val position by PlayerConnection.position.collectAsStateWithLifecycle()
+    var showLyrics by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -77,7 +79,19 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                actions = { if (state.hasItem) SleepTimerAction() },
+                actions = {
+                    if (state.hasItem) {
+                        IconButton(onClick = { showLyrics = !showLyrics }) {
+                            Icon(
+                                Icons.Filled.Lyrics,
+                                contentDescription = stringResource(R.string.lyrics_title),
+                                tint = if (showLyrics) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        SleepTimerAction()
+                    }
+                },
             )
         },
     ) { padding ->
@@ -124,7 +138,15 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                if (state.artworkUrl != null) {
+                val trackId = state.currentTrackId
+                if (showLyrics && trackId != null) {
+                    LyricsView(
+                        trackId = trackId,
+                        positionMs = position.positionMs,
+                        onSeek = PlayerConnection::seekTo,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else if (state.artworkUrl != null) {
                     AsyncImage(
                         model = state.artworkUrl,
                         contentDescription = state.title,

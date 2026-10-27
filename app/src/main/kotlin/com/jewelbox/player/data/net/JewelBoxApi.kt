@@ -144,6 +144,10 @@ interface JewelBoxApi {
     @GET("api/player/tracks/{id}")
     suspend fun track(@Path("id") id: Int): QueueTrackDto
 
+    /** Lyrics of a track (server >= 1.20; 404 before). */
+    @GET("api/player/tracks/{id}/lyrics")
+    suspend fun lyrics(@Path("id") id: Int): LyricsDto
+
     /** Radio around an album or an artist (server >= 1.16). */
     @GET("api/player/radio")
     suspend fun radio(

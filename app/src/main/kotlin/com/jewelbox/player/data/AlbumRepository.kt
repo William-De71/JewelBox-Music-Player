@@ -4,6 +4,7 @@ import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.AlbumsPage
 import com.jewelbox.player.data.net.ApiClient
 import com.jewelbox.player.data.net.HealthDto
+import com.jewelbox.player.data.net.LyricsDto
 import com.jewelbox.player.data.net.NowPlayingBody
 import com.jewelbox.player.data.net.PlayedBody
 import com.jewelbox.player.data.net.ScrobbleBody
@@ -52,6 +53,10 @@ class AlbumRepository(private val prefs: ServerPrefs) {
      */
     suspend fun markPlayed(trackId: Int, playedAt: String? = null) =
         requireApi().markPlayed(trackId, PlayedBody(playedAt))
+
+    /** GET /api/player/tracks/:id/lyrics (server >= 1.20). */
+    suspend fun lyrics(trackId: Int): LyricsDto =
+        requireApi().lyrics(trackId)
 
     /** POST /api/lastfm/nowplaying — the Last.fm session lives server-side. */
     suspend fun nowPlaying(trackId: Int) =
