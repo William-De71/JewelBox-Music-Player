@@ -41,6 +41,25 @@ class HomeApiTest {
     }
 
     @Test
+    fun `refreshSuggestions posts to the suggestions endpoint`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"suggestions":[{"id":22,"title":"Nevermind","artist":{"id":4,"name":"Nirvana"}}]}""",
+                ),
+            )
+            server.start()
+
+            val result = ApiClient.create(server.url("/").toString()).refreshSuggestions()
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/api/player/home/suggestions", request.path)
+            assertEquals(listOf(22), result.suggestions.map { it.id })
+        }
+    }
+
+    @Test
     fun `reportPlay posts the item type and id`() = runBlocking {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().setResponseCode(204))

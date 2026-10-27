@@ -44,6 +44,10 @@ class HomeViewModel : ViewModel() {
     private val _resumable = MutableStateFlow<QueueDeviceDto?>(null)
     val resumable: StateFlow<QueueDeviceDto?> = _resumable.asStateFlow()
 
+    // A new draw of suggestions is in flight (refresh button disabled meanwhile).
+    private val _refreshingSuggestions = MutableStateFlow(false)
+    val refreshingSuggestions: StateFlow<Boolean> = _refreshingSuggestions.asStateFlow()
+
     // Devices dismissed this session, so a dismissed banner stays gone across
     // home refreshes until that device plays something new.
     private val dismissed = mutableSetOf<Pair<String, String?>>()
@@ -67,6 +71,23 @@ class HomeViewModel : ViewModel() {
     /** Manual reload (used by the "Réessayer" button) against the current stored URL. */
     fun load() {
         viewModelScope.launch { loadFor(repo.currentServerUrl()) }
+    }
+
+    /**
+     * Refresh button of the suggestions section: the server draws a new set and
+     * keeps it for the day. [onError] gets true when the server predates 1.21.
+     */
+    fun refreshSuggestions(onError: (serverTooOld: Boolean) -> Unit) {
+        if (_refreshingSuggestions.value) return
+        _refreshingSuggestions.value = true
+        viewModelScope.launch {
+            runCatching { repo.refreshSuggestions() }
+                .onSuccess { suggestions ->
+                    (_state.value as? HomeUiState.Loaded)?.let { _state.value = it.copy(suggestions = suggestions) }
+                }
+                .onFailure { e -> onError(SearchLogic.isServerTooOld(e)) }
+            _refreshingSuggestions.value = false
+        }
     }
 
     /** Best-effort: an old server without the queue routes simply shows nothing. */

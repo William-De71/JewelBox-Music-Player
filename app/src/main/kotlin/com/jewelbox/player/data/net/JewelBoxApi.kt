@@ -119,6 +119,10 @@ interface JewelBoxApi {
     @GET("api/player/home")
     suspend fun home(): HomeDto
 
+    /** Draws a new set of suggestions, kept for the rest of the day (server >= 1.21). */
+    @POST("api/player/home/suggestions")
+    suspend fun refreshSuggestions(): SuggestionsDto
+
     /** Reports that playback started from an album or playlist (server >= 1.9). */
     @POST("api/player/history")
     suspend fun reportPlay(@Body body: PlayHistoryBody)

@@ -26,6 +26,10 @@ class HomeRepository(private val prefs: ServerPrefs) {
     suspend fun home(): HomeDto =
         requireApi().home()
 
+    /** POST /api/player/home/suggestions — a new draw of suggested albums (server >= 1.21). */
+    suspend fun refreshSuggestions(): List<AlbumDto> =
+        requireApi().refreshSuggestions().suggestions
+
     /** The [count] most recently added owned albums, newest first (home "latest" row). */
     suspend fun latestAlbums(count: Int = 10): List<AlbumDto> =
         requireApi().albums(page = 1, limit = count, sort = "created_at", order = "desc").data

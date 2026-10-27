@@ -261,6 +261,12 @@ data class HomeDto(
     val suggestions: List<AlbumDto> = emptyList(),
 )
 
+/** Response of POST /api/player/home/suggestions (server >= 1.21). */
+@Serializable
+data class SuggestionsDto(
+    val suggestions: List<AlbumDto> = emptyList(),
+)
+
 @Serializable
 data class Pagination(
     val total: Int = 0,

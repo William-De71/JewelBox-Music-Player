@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -40,10 +41,12 @@ import com.jewelbox.player.ServiceLocator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.runtime.getValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,6 +85,8 @@ fun HomeScreen(
     val hasDownloads = offlineCatalog.albums.isNotEmpty() || offlineCatalog.playlists.isNotEmpty()
     val state by vm.state.collectAsStateWithLifecycle()
     val resumable by vm.resumable.collectAsStateWithLifecycle()
+    val refreshingSuggestions by vm.refreshingSuggestions.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -142,6 +147,13 @@ fun HomeScreen(
                     onOpenAlbum = onOpenAlbum,
                     onOpenPlaylist = onOpenPlaylist,
                     onOpenSmart = onOpenSmart,
+                    refreshingSuggestions = refreshingSuggestions,
+                    onRefreshSuggestions = {
+                        vm.refreshSuggestions { tooOld ->
+                            val message = if (tooOld) R.string.home_suggestions_server_too_old else R.string.home_suggestions_refresh_failed
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    },
                 )
             }
         }
@@ -157,6 +169,8 @@ private fun HomeContent(
     onOpenAlbum: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
     onOpenSmart: (String) -> Unit,
+    refreshingSuggestions: Boolean,
+    onRefreshSuggestions: () -> Unit,
 ) {
     // One flat grid of 6 columns for the whole screen, so both sections fit on
     // screen without scrolling: recent entries span 3 columns each (2 per row,
@@ -229,7 +243,11 @@ private fun HomeContent(
 
         if (state.suggestions.isNotEmpty()) {
             item(key = "suggestions-header", span = { GridItemSpan(maxLineSpan) }) {
-                SectionHeader(stringResource(R.string.home_suggestions_header))
+                SectionHeader(stringResource(R.string.home_suggestions_header)) {
+                    IconButton(onClick = onRefreshSuggestions, enabled = !refreshingSuggestions) {
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.home_suggestions_refresh))
+                    }
+                }
             }
             items(
                 items = state.suggestions,
@@ -313,12 +331,23 @@ private fun ResumeCard(
 }
 
 @Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(top = 4.dp),
-    )
+private fun SectionHeader(text: String, action: (@Composable () -> Unit)? = null) {
+    if (action == null) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f).padding(top = 4.dp),
+        )
+        action()
+    }
 }
 
 /**
