@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.net.PlaylistSummaryDto
+import com.jewelbox.player.playback.Offline
 import com.jewelbox.player.ui.playlists.PlaylistNotice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -122,11 +123,29 @@ class AlbumDetailViewModel(private val albumId: Int) : ViewModel() {
             runCatching { repo.album(albumId) }
                 .onSuccess { album ->
                     _state.value = AlbumDetailUiState.Loaded(serverUrl = serverUrl, album = album)
+                    // A downloaded album follows its changes (tracks edited, files added).
+                    if (Offline.currentScope.value == null) Offline.refreshScope()
+                    Offline.onAlbumLoaded(album)
                 }
                 .onFailure { e ->
                     _state.value = AlbumDetailUiState.Error(e.message)
                 }
         }
+    }
+
+    /** Keeps the album on the phone for offline listening. */
+    fun download() {
+        val loaded = _state.value as? AlbumDetailUiState.Loaded ?: return
+        viewModelScope.launch {
+            runCatching { Offline.keepAlbum(loaded.album) }
+                .onFailure { _notice.value = PlaylistNotice.Failed(it.message) }
+        }
+    }
+
+    fun removeDownload() {
+        val loaded = _state.value as? AlbumDetailUiState.Loaded ?: return
+        val scope = Offline.currentScope.value ?: return
+        viewModelScope.launch { Offline.removeAlbum(scope, loaded.album.id) }
     }
 
     // Passes the albumId into the ViewModel, which the default factory can't do.

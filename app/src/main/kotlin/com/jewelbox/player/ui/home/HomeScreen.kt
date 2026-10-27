@@ -36,6 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import com.jewelbox.player.ServiceLocator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,9 +74,12 @@ fun HomeScreen(
     onOpenAlbum: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
     onOpenSmart: (String) -> Unit,
+    onOpenDownloads: () -> Unit,
     bottomBar: @Composable () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
+    val offlineCatalog by ServiceLocator.offlineStore.catalog.collectAsStateWithLifecycle()
+    val hasDownloads = offlineCatalog.albums.isNotEmpty() || offlineCatalog.playlists.isNotEmpty()
     val state by vm.state.collectAsStateWithLifecycle()
     val resumable by vm.resumable.collectAsStateWithLifecycle()
 
@@ -82,6 +88,11 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
+                    if (hasDownloads) {
+                        IconButton(onClick = onOpenDownloads) {
+                            Icon(Icons.Filled.DownloadForOffline, contentDescription = stringResource(R.string.offline_title))
+                        }
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
                     }
@@ -118,6 +129,9 @@ fun HomeScreen(
                     ),
                     actionLabel = stringResource(R.string.retry),
                     onAction = vm::load,
+                    // Server out of reach: what is on the phone still plays.
+                    secondaryLabel = if (hasDownloads) stringResource(R.string.offline_listen) else null,
+                    onSecondary = onOpenDownloads,
                 )
 
                 is HomeUiState.Loaded -> HomeContent(
@@ -426,6 +440,8 @@ private fun CenteredMessage(
     text: String,
     actionLabel: String,
     onAction: () -> Unit,
+    secondaryLabel: String? = null,
+    onSecondary: () -> Unit = {},
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -434,5 +450,9 @@ private fun CenteredMessage(
         Text(text, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(16.dp))
         Button(onClick = onAction) { Text(actionLabel) }
+        if (secondaryLabel != null) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSecondary) { Text(secondaryLabel) }
+        }
     }
 }

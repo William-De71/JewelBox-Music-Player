@@ -124,6 +124,36 @@
     <string name="remote_control_label">Autoriser le contrôle à distance</string>
     <string name="remote_control_description">Un autre client du serveur, comme Gladys, peut piloter ce lecteur : lecture, pause, piste suivante, volume, lancer un album. Tant que l’application est ouverte ou joue.</string>
     <string name="remote_radio_label">Radio · %1$s</string>
+    <string name="offline_title">Téléchargements</string>
+    <string name="offline_download">Télécharger pour l’écoute hors-ligne</string>
+    <string name="offline_downloaded">Téléchargé (toucher pour retirer)</string>
+    <string name="offline_waiting">En attente du réseau (Wi-Fi par défaut)</string>
+    <string name="offline_retry">Téléchargement en échec : réessayer</string>
+    <string name="offline_remove_title">Retirer des téléchargements ?</string>
+    <string name="offline_remove_text">La musique ne sera plus disponible hors-ligne sur ce téléphone.</string>
+    <string name="offline_remove">Retirer</string>
+    <string name="offline_space">Espace utilisé : %1$s</string>
+    <string name="offline_on_mobile">Télécharger aussi sur données mobiles</string>
+    <string name="offline_empty">Aucun téléchargement. Sur une fiche album ou une playlist, touchez l’icône de téléchargement pour l’écouter sans le serveur.</string>
+    <string name="offline_albums">Albums</string>
+    <string name="offline_playlists">Playlists</string>
+    <string name="offline_manage">Gérer les téléchargements</string>
+    <string name="offline_listen">Écouter hors-ligne</string>
+    <plurals name="offline_pending_plays">
+        <item quantity="one">%1$d écoute en attente d’envoi au serveur</item>
+        <item quantity="other">%1$d écoutes en attente d’envoi au serveur</item>
+    </plurals>
+    <plurals name="offline_tracks">
+        <item quantity="one">%1$d titre</item>
+        <item quantity="other">%1$d titres</item>
+    </plurals>
+    <plurals name="offline_failed">
+        <item quantity="one">%1$d titre en échec : touchez réessayer sur sa fiche</item>
+        <item quantity="other">%1$d titres en échec : touchez réessayer sur sa fiche</item>
+    </plurals>
+    <string name="downloads_channel">Téléchargements</string>
+    <string name="downloads_channel_description">Progression des albums et playlists téléchargés pour l’écoute hors-ligne</string>
+    <string name="downloads_notification">Téléchargement pour l’écoute hors-ligne</string>
     <string name="sleep_timer_title">Minuteur de sommeil</string>
     <string name="sleep_timer_minutes">%1$d min</string>
     <string name="sleep_timer_end_of_track">Fin de la piste en cours</string>

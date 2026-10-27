@@ -21,6 +21,7 @@ import com.jewelbox.player.data.net.DeviceQueueDto
 import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.ReplayGainDto
 import com.jewelbox.player.data.net.TrackDto
+import com.jewelbox.player.data.offline.cacheKey
 import com.jewelbox.player.data.resolveCover
 import com.jewelbox.player.ui.playlists.DYNAMIC_MIX_KEY
 import com.jewelbox.player.ui.playlists.smartSpec
@@ -481,18 +482,15 @@ object PlayerConnection {
         }
 
         val due = scrobbleTracker.onTick(positionMs / 1000.0, durationMs / 1000.0) ?: return
-        scope.launch {
-            // Local play counting first, independent of Last.fm availability.
-            runCatching { ServiceLocator.albumRepository.markPlayed(due.trackId) }
-            runCatching { ServiceLocator.albumRepository.scrobble(due.trackId, due.startedAt) }
-        }
+        // Counter then Last.fm; kept on the phone while the server is away.
+        Offline.reportPlay(due.trackId, due.startedAt)
     }
 
     /**
      * Queues every playable track of [album] (those with an audio file) and starts
      * playback at [startTrackId].
      */
-    fun playAlbum(serverUrl: String, album: AlbumDto, startTrackId: Int) {
+    fun playAlbum(serverUrl: String, album: AlbumDto, startTrackId: Int, offlineScope: String? = null) {
         val c = controller ?: return
         val playable = album.tracks.filter { it.hasFile }
         if (playable.isEmpty()) return
@@ -502,7 +500,8 @@ object PlayerConnection {
         updateSourceLabel(album.title)
         reportPlayStarted(QueueSource.Album(album.id))
         val startIndex = playable.indexOfFirst { it.id == startTrackId }.coerceAtLeast(0)
-        val items = playable.map { track -> mediaItem(serverUrl, album, track) }
+        val trackScope = offlineScope ?: Offline.currentScope.value
+        val items = playable.map { track -> mediaItem(serverUrl, album, track, trackScope) }
         c.setMediaItems(items, startIndex, 0L)
         c.prepare()
         c.play()
@@ -523,6 +522,7 @@ object PlayerConnection {
         source: QueueSource? = null,
         startPositionMs: Long = 0L,
         sourceLabel: String? = null,
+        offlineScope: String? = null,
     ) {
         val c = controller ?: return
         val playable = tracks.filter { it.hasFile }
@@ -532,7 +532,8 @@ object PlayerConnection {
         _queueSource.value = source
         updateSourceLabel(sourceLabel ?: defaultSourceLabel(source))
         reportPlayStarted(source)
-        val items = playable.map { mediaItem(serverUrl, it) }
+        val trackScope = offlineScope ?: Offline.currentScope.value
+        val items = playable.map { mediaItem(serverUrl, it, trackScope) }
         c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), startPositionMs.coerceAtLeast(0L))
         c.prepare()
         c.play()
@@ -901,7 +902,12 @@ object PlayerConnection {
         return true
     }
 
-    private fun mediaItem(serverUrl: String, album: AlbumDto, track: TrackDto): MediaItem =
+    private fun mediaItem(
+        serverUrl: String,
+        album: AlbumDto,
+        track: TrackDto,
+        scope: String? = Offline.currentScope.value,
+    ): MediaItem =
         mediaItem(
             serverUrl = serverUrl,
             trackId = track.id,
@@ -911,9 +917,14 @@ object PlayerConnection {
             coverUrl = album.coverUrl,
             isFavorite = track.isFavorite,
             replayGain = track.replaygain,
+            scope = scope,
         )
 
-    private fun mediaItem(serverUrl: String, track: QueueTrackDto): MediaItem =
+    private fun mediaItem(
+        serverUrl: String,
+        track: QueueTrackDto,
+        scope: String? = Offline.currentScope.value,
+    ): MediaItem =
         mediaItem(
             serverUrl = serverUrl,
             trackId = track.id,
@@ -923,6 +934,7 @@ object PlayerConnection {
             coverUrl = track.coverUrl,
             isFavorite = track.isFavorite,
             replayGain = track.replaygain,
+            scope = scope,
         )
 
     private fun mediaItem(serverUrl: String, track: SavedTrack): MediaItem =
@@ -935,8 +947,11 @@ object PlayerConnection {
             coverUrl = track.coverUrl,
             isFavorite = track.isFavorite,
             replayGain = track.replaygain,
+            scope = track.scope ?: Offline.currentScope.value,
         )
 
+    // setCustomCacheKey: the key of the download library (offline listening).
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private fun mediaItem(
         serverUrl: String,
         trackId: Int,
@@ -946,10 +961,11 @@ object PlayerConnection {
         coverUrl: String?,
         isFavorite: Boolean,
         replayGain: ReplayGainDto?,
+        scope: String?,
     ): MediaItem {
         // Remembered so the queue can be serialized for the next app start:
         // MediaItem alone doesn't carry back the raw (relative) cover URL.
-        savedTracks[trackId] = SavedTrack(trackId, title, artistName, albumTitle, coverUrl, isFavorite, replayGain)
+        savedTracks[trackId] = SavedTrack(trackId, title, artistName, albumTitle, coverUrl, isFavorite, replayGain, scope)
         val streamUrl = serverUrl.trimEnd('/') + "/api/player/tracks/$trackId/stream"
         val extras = Bundle().apply {
             putBoolean(EXTRA_IS_FAVORITE, isFavorite)
@@ -962,12 +978,16 @@ object PlayerConnection {
             .setAlbumTitle(albumTitle)
             .setExtras(extras)
             .apply {
-                resolveCover(serverUrl, coverUrl)?.let { setArtworkUri(Uri.parse(it)) }
+                // The cover kept for offline listening first: it shows without the server.
+                (Offline.localCover(coverUrl) ?: resolveCover(serverUrl, coverUrl))
+                    ?.let { setArtworkUri(Uri.parse(it)) }
             }
             .build()
         return MediaItem.Builder()
             .setMediaId(trackId.toString())
             .setUri(streamUrl)
+            // A downloaded track is read from the phone (same key as its download).
+            .apply { scope?.let { setCustomCacheKey(cacheKey(it, trackId)) } }
             .setMediaMetadata(metadata)
             .build()
     }

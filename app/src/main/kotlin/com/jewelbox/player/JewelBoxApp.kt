@@ -10,6 +10,8 @@ import com.jewelbox.player.data.PlaylistRepository
 import com.jewelbox.player.data.QueueSyncRepository
 import com.jewelbox.player.data.ServerPrefs
 import com.jewelbox.player.data.net.ServerDiscovery
+import com.jewelbox.player.data.offline.OfflineStore
+import com.jewelbox.player.playback.Offline
 import com.jewelbox.player.playback.PlayerConnection
 
 /**
@@ -23,6 +25,8 @@ class JewelBoxApp : Application() {
     override fun onCreate() {
         super.onCreate()
         ServiceLocator.init(this)
+        // Before the player: its data source reads the download cache.
+        Offline.init(this)
         // Binds the MediaController to the playback service for the whole app lifetime.
         PlayerConnection.init(this)
     }
@@ -43,6 +47,8 @@ object ServiceLocator {
         private set
     lateinit var queueSyncRepository: QueueSyncRepository
         private set
+    lateinit var offlineStore: OfflineStore
+        private set
 
     fun init(app: Application) {
         serverPrefs = ServerPrefs(app.applicationContext)
@@ -51,6 +57,7 @@ object ServiceLocator {
         homeRepository = HomeRepository(serverPrefs)
         queueSyncRepository = QueueSyncRepository(serverPrefs)
         playbackStateStore = PlaybackStateStore(app.applicationContext)
+        offlineStore = OfflineStore(app.applicationContext)
         serverDiscovery = ServerDiscovery(
             app.getSystemService(Context.NSD_SERVICE) as NsdManager,
         )

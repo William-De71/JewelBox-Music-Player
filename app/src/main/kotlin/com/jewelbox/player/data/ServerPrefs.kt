@@ -43,6 +43,14 @@ class ServerPrefs(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[REMOTE_CONTROL_KEY] = enabled }
     }
 
+    /** Offline downloads over mobile data too (off by default: Wi-Fi only). */
+    val downloadOnMobile: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[DOWNLOAD_ON_MOBILE_KEY] ?: false }
+
+    suspend fun setDownloadOnMobile(allowed: Boolean) {
+        context.dataStore.edit { prefs -> prefs[DOWNLOAD_ON_MOBILE_KEY] = allowed }
+    }
+
     /** Volume normalization from the ReplayGain tags: off, track or album (default). */
     val replayGain: Flow<ReplayGainMode> = context.dataStore.data
         .map { prefs -> ReplayGainMode.fromKey(prefs[REPLAYGAIN_KEY]) }
@@ -83,5 +91,6 @@ class ServerPrefs(private val context: Context) {
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
         val REMOTE_CONTROL_KEY = booleanPreferencesKey("remote_control")
         val REPLAYGAIN_KEY = stringPreferencesKey("replaygain")
+        val DOWNLOAD_ON_MOBILE_KEY = booleanPreferencesKey("download_on_mobile")
     }
 }

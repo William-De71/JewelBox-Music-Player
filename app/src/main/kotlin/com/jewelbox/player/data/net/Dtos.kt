@@ -32,6 +32,15 @@ data class ServerInfoDto(
     val collection: String? = null,
 )
 
+/**
+ * Body of POST /api/player/tracks/:id/played: played_at (ISO) dates a play
+ * reported late, after an offline stretch (server >= 1.20; ignored before).
+ */
+@Serializable
+data class PlayedBody(
+    @SerialName("played_at") val playedAt: String? = null,
+)
+
 /** Body of POST /api/lastfm/nowplaying — the server enriches from its DB and calls Last.fm. */
 @Serializable
 data class NowPlayingBody(

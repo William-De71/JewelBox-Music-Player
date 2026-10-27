@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.PlaylistDto
+import com.jewelbox.player.playback.Offline
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,28 @@ class PlaylistDetailViewModel(private val playlistId: Int) : ViewModel() {
 
     init {
         load()
+        // A downloaded playlist follows every change seen here (edits included).
+        viewModelScope.launch {
+            _state.collect { state ->
+                val playlist = (state as? PlaylistDetailUiState.Loaded)?.playlist ?: return@collect
+                if (Offline.currentScope.value == null) Offline.refreshScope()
+                Offline.onPlaylistLoaded(playlist)
+            }
+        }
+    }
+
+    /** Keeps the playlist on the phone for offline listening (it follows the server). */
+    fun download() {
+        val playlist = loaded()?.playlist ?: return
+        viewModelScope.launch {
+            runCatching { Offline.keepPlaylist(playlist) }
+                .onFailure { _notice.value = PlaylistNotice.Failed(it.message) }
+        }
+    }
+
+    fun removeDownload() {
+        val scope = Offline.currentScope.value ?: return
+        viewModelScope.launch { Offline.removePlaylist(scope, playlistId) }
     }
 
     fun load() {

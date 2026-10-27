@@ -5,6 +5,7 @@ import com.jewelbox.player.data.net.AlbumsPage
 import com.jewelbox.player.data.net.ApiClient
 import com.jewelbox.player.data.net.HealthDto
 import com.jewelbox.player.data.net.NowPlayingBody
+import com.jewelbox.player.data.net.PlayedBody
 import com.jewelbox.player.data.net.ScrobbleBody
 import com.jewelbox.player.data.net.SearchResultsDto
 import kotlinx.coroutines.flow.Flow
@@ -45,9 +46,12 @@ class AlbumRepository(private val prefs: ServerPrefs) {
     suspend fun search(query: String): SearchResultsDto =
         requireApi().search(query)
 
-    /** POST /api/player/tracks/:id/played — local play counter, independent of Last.fm. */
-    suspend fun markPlayed(trackId: Int) =
-        requireApi().markPlayed(trackId)
+    /**
+     * POST /api/player/tracks/:id/played — local play counter, independent of
+     * Last.fm. [playedAt] (ISO) dates a play reported late.
+     */
+    suspend fun markPlayed(trackId: Int, playedAt: String? = null) =
+        requireApi().markPlayed(trackId, PlayedBody(playedAt))
 
     /** POST /api/lastfm/nowplaying — the Last.fm session lives server-side. */
     suspend fun nowPlaying(trackId: Int) =

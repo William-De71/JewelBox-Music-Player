@@ -52,6 +52,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jewelbox.player.playback.Offline
+import com.jewelbox.player.ui.offline.OfflineAction
+import com.jewelbox.player.ui.offline.rememberOfflineStatus
 import coil.compose.AsyncImage
 import com.jewelbox.player.R
 import com.jewelbox.player.data.net.AlbumDto
@@ -94,7 +97,12 @@ fun AlbumDetailScreen(
                     }
                 },
                 actions = {
-                    if (state is AlbumDetailUiState.Loaded) {
+                    val loaded = state as? AlbumDetailUiState.Loaded
+                    if (loaded != null) {
+                        val offline = rememberOfflineStatus {
+                            Offline.albumStatus(Offline.currentScope.value, loaded.album)
+                        }
+                        OfflineAction(offline, onDownload = vm::download, onRemove = vm::removeDownload)
                         IconButton(onClick = { vm.openAddToPlaylist() }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.PlaylistAdd,

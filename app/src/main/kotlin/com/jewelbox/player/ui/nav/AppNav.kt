@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.jewelbox.player.ui.albumdetail.AlbumDetailScreen
 import com.jewelbox.player.ui.albums.AlbumListScreen
 import com.jewelbox.player.ui.home.HomeScreen
+import com.jewelbox.player.ui.offline.DownloadsScreen
 import com.jewelbox.player.ui.player.NowPlayingScreen
 import com.jewelbox.player.ui.playlists.PlaylistDetailScreen
 import com.jewelbox.player.ui.playlists.PlaylistsScreen
@@ -27,6 +28,7 @@ private object Routes {
     const val PLAYLISTS = "playlists"
     const val PLAYLIST_DETAIL = "playlist/{playlistId}"
     const val SMART_PLAYLIST = "smart/{smartKey}"
+    const val DOWNLOADS = "downloads"
     fun albumDetail(id: Int) = "album/$id"
     fun playlistDetail(id: Int) = "playlist/$id"
     fun smartPlaylist(key: String) = "smart/$key"
@@ -71,6 +73,7 @@ fun AppNav() {
                 onOpenAlbum = { id -> nav.navigate(Routes.albumDetail(id)) },
                 onOpenPlaylist = { id -> nav.navigate(Routes.playlistDetail(id)) },
                 onOpenSmart = { key -> nav.navigate(Routes.smartPlaylist(key)) },
+                onOpenDownloads = { nav.navigate(Routes.DOWNLOADS) },
                 bottomBar = { bottomBar(RootTab.HOME) },
             )
         }
@@ -132,9 +135,16 @@ fun AppNav() {
                 onBack = { nav.popBackStack() },
             )
         }
+        composable(Routes.DOWNLOADS) {
+            DownloadsScreen(
+                onBack = { nav.popBackStack() },
+                bottomBar = { bottomBar(null) },
+            )
+        }
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { nav.popBackStack() },
+                onOpenDownloads = { nav.navigate(Routes.DOWNLOADS) },
                 bottomBar = { bottomBar(null) },
             )
         }

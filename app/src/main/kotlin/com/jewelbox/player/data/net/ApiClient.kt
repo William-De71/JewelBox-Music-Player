@@ -31,6 +31,9 @@ object ApiClient {
             .build()
     }
 
+    /** The shared HTTP client, for plain downloads (offline covers). */
+    val httpClient: OkHttpClient get() = okHttp
+
     /**
      * @param rawUrl the user-entered server URL, e.g. "http://192.168.1.20:3001".
      * @param deviceId sent as X-Device-Id when given: the playback-queue routes

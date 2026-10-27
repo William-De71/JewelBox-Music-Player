@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -19,6 +20,7 @@ import com.google.common.util.concurrent.ListenableFuture
  * buttons — and playback survives the activity being killed, which is the whole
  * reason this app is native rather than a PWA.
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
@@ -33,6 +35,8 @@ class PlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             // Streaming over LAN/VPN: keep network alive while playing.
             .setWakeMode(C.WAKE_MODE_NETWORK)
+            // Downloaded tracks play from the phone (offline listening).
+            .setMediaSourceFactory(DefaultMediaSourceFactory(Offline.playerDataSourceFactory()))
             .build()
 
         // Tapping the media notification reopens the app.

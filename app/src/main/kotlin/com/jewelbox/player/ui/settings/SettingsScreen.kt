@@ -46,6 +46,7 @@ import com.jewelbox.player.playback.ReplayGainMode
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenDownloads: () -> Unit,
     bottomBar: @Composable () -> Unit,
     vm: SettingsViewModel = viewModel(),
 ) {
@@ -152,6 +153,14 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
 
             ReplayGainSection(selected = state.replayGain, onSelect = vm::setReplayGain)
+
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(24.dp))
+
+            Text(stringResource(R.string.offline_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onOpenDownloads) { Text(stringResource(R.string.offline_manage)) }
         }
     }
 }

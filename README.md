@@ -18,6 +18,11 @@ un dépôt séparé (`jewelbox-music-library`).
   shuffle, repeat (off/tout/une), swipe gauche/droite pour changer de piste.
 - **Scrobbling Last.fm** + compteur de lectures : mêmes règles que la PWA ; la session
   Last.fm est stockée côté serveur et partagée avec elle (rien à configurer dans l'app).
+- **Écoute hors-ligne** : bouton de téléchargement sur une fiche album ou une playlist
+  (une playlist téléchargée suit ses changements sur le serveur), écran *Téléchargements*
+  (accueil, Réglages) qui marche sans serveur. Wi-Fi seulement par défaut (réglable).
+  Les écoutes faites sans serveur sont gardées puis envoyées à son retour, avec leur
+  vraie date (serveur ≥ 1.20 ; Last.fm jusqu'à 13 jours).
 - **Normalisation du volume** (ReplayGain, serveur ≥ 1.20) : par album (défaut), par
   piste ou désactivée, dans les Réglages ; même règle que la PWA (baisse seulement).
 - **Réglages** : adresse du serveur (`http://ip:3001`), bouton *Tester* (`GET /api/health`),

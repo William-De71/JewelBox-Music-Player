@@ -26,6 +26,8 @@ data class SavedTrack(
     @SerialName("cover_url") val coverUrl: String? = null,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
     val replaygain: ReplayGainDto? = null,
+    /** Collection of the track (offline downloads are keyed by it), when known. */
+    val scope: String? = null,
 )
 
 /**

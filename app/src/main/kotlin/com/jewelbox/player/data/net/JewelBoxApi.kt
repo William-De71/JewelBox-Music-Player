@@ -40,7 +40,7 @@ interface JewelBoxApi {
 
     /** Local play counter (play_count/last_played_at), independent of Last.fm. */
     @POST("api/player/tracks/{id}/played")
-    suspend fun markPlayed(@Path("id") id: Int)
+    suspend fun markPlayed(@Path("id") id: Int, @Body body: PlayedBody = PlayedBody())
 
     // Both Last.fm calls are fire-and-forget on the server side: it replies 204
     // even when scrobbling is unavailable, so playback is never disturbed.
