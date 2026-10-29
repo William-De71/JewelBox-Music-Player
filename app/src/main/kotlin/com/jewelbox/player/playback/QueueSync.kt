@@ -38,6 +38,15 @@ class QueueSyncPlanner {
         trackIds = emptyList()
     }
 
+    /**
+     * The server already holds this queue (restored at start-up): don't send it
+     * back, which would date it as just played and hide other devices' resume.
+     */
+    fun prime(trackIds: List<Int>, currentIndex: Int) {
+        this.trackIds = trackIds.toList()
+        index = currentIndex
+    }
+
     /** New queue state; returns the call to make, or null. [nowSec] is any monotonic clock. */
     fun update(
         trackIds: List<Int>,
