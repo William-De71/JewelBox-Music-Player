@@ -18,6 +18,7 @@ kover {
                     "com.jewelbox.player.playback.ScrobbleTracker*",
                     "com.jewelbox.player.playback.DynamicMixSync*",
                     "com.jewelbox.player.playback.QueueSync*",
+                    "com.jewelbox.player.playback.AutoMediaId*",
                 )
             }
             excludes {

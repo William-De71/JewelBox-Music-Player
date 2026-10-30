@@ -23,6 +23,13 @@ un dépôt séparé (`jewelbox-music-library`).
   (accueil, Réglages) qui marche sans serveur. Wi-Fi seulement par défaut (réglable).
   Les écoutes faites sans serveur sont gardées puis envoyées à son retour, avec leur
   vraie date (serveur ≥ 1.20 ; Last.fm jusqu'à 13 jours).
+- **Android Auto** : quatre onglets sur l'écran de la voiture — *Accueil* (reprendre
+  l'écoute, suggestions), *Bibliothèque* (artistes → albums), *Playlists* (listes
+  intelligentes et playlists) et *Téléchargements*, qui marche sans le serveur. La
+  commande vocale « joue … sur JewelBox » lance l'album trouvé (sinon les pistes) ;
+  sans titre précis, le mix dynamique. Une écoute lancée de la voiture est comptée,
+  scrobblée et reprise comme depuis le téléphone. L'APK ne venant pas du Play Store,
+  il faut activer *Sources inconnues* dans les paramètres développeur d'Android Auto.
 - **Paroles** (serveur ≥ 1.20) : bouton du grand lecteur, synchronisées quand elles existent.
 - **Fondu entre les morceaux** (Réglages, désactivé par défaut) : le son baisse et remonte
   entre deux morceaux, jamais entre deux pistes qui se suivent sur un album.
@@ -58,7 +65,8 @@ app/src/main/kotlin/com/jewelbox/player/
 │   ├── ServerPrefs.kt      DataStore : URL du serveur + server_id (identité mDNS)
 │   └── CoverUrl.kt         Résolution des pochettes (absolue vs /covers/…)
 ├── playback/               Lecture
-│   ├── PlaybackService.kt  MediaSessionService qui héberge ExoPlayer
+│   ├── PlaybackService.kt  MediaLibraryService qui héberge ExoPlayer
+│   ├── AutoLibrary.kt      Arborescence Android Auto + ce qu'un choix lance
 │   └── PlayerConnection.kt Pont UI ↔ service (StateFlow) + scrobbling
 └── ui/                     Compose (un dossier par écran : Screen + ViewModel)
     ├── nav/AppNav.kt       Routes de navigation
