@@ -51,12 +51,16 @@ data class SettingsUiState(
     val replayGain: ReplayGainMode = ReplayGainMode.DEFAULT,
     /** Soft transition between tracks, seconds (0: off). */
     val transitionFade: Int = 0,
+    /** Tracks the dynamic mix never draws; null while unknown (loading, server < 1.22, unreachable). */
+    val blockedCount: Int? = null,
+    val clearingBlocked: Boolean = false,
 )
 
 class SettingsViewModel : ViewModel() {
 
     private val prefs = ServiceLocator.serverPrefs
     private val repo = ServiceLocator.albumRepository
+    private val playlists = ServiceLocator.playlistRepository
     private val discovery = ServiceLocator.serverDiscovery
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -79,6 +83,23 @@ class SettingsViewModel : ViewModel() {
         prefs.transitionFade
             .onEach { _state.value = _state.value.copy(transitionFade = it) }
             .launchIn(viewModelScope)
+        viewModelScope.launch {
+            val count = runCatching { playlists.blockedDynamicMixCount() }.getOrNull()
+            _state.value = _state.value.copy(blockedCount = count)
+        }
+    }
+
+    /** Lets every blacklisted track back into the dynamic mix. */
+    fun clearBlocked() {
+        if (_state.value.clearingBlocked) return
+        _state.value = _state.value.copy(clearingBlocked = true)
+        viewModelScope.launch {
+            val cleared = runCatching { playlists.clearBlockedDynamicMix() }.isSuccess
+            _state.value = _state.value.copy(
+                clearingBlocked = false,
+                blockedCount = if (cleared) 0 else _state.value.blockedCount,
+            )
+        }
     }
 
     fun setRemoteControl(enabled: Boolean) {

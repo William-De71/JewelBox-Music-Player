@@ -215,6 +215,18 @@ data class DynamicMixPlayedDto(
     val tracks: List<QueueTrackDto> = emptyList(),
 )
 
+/** Response of GET /api/smart-playlists/dynamic_mix/blocked. */
+@Serializable
+data class DynamicMixBlockedDto(
+    val data: List<QueueTrackDto> = emptyList(),
+)
+
+/** Response of DELETE /api/smart-playlists/dynamic_mix/blocked: how many were let back in. */
+@Serializable
+data class DynamicMixClearedDto(
+    val cleared: Int = 0,
+)
+
 /**
  * Response of GET /api/player/search (server >= 1.7): both sections in one call,
  * capped server-side (30 albums / 100 tracks) instead of paginated.

@@ -101,6 +101,21 @@ interface JewelBoxApi {
     @DELETE("api/smart-playlists/dynamic_mix/tracks/{id}")
     suspend fun dynamicMixRemove(@Path("id") id: Int): DynamicMixPlayedDto
 
+    /**
+     * "Never play again": blocks the track for good, then drops it from the
+     * list like /played (needs server >= 1.22; 404 before that).
+     */
+    @POST("api/smart-playlists/dynamic_mix/blocked")
+    suspend fun dynamicMixBlock(@Body body: DynamicMixPlayedBody): DynamicMixPlayedDto
+
+    /** The tracks the dynamic mix never draws (server >= 1.22). */
+    @GET("api/smart-playlists/dynamic_mix/blocked")
+    suspend fun dynamicMixBlocked(): DynamicMixBlockedDto
+
+    /** Empties the blocklist (server >= 1.22). */
+    @DELETE("api/smart-playlists/dynamic_mix/blocked")
+    suspend fun dynamicMixClearBlocked(): DynamicMixClearedDto
+
     // ── Recherche ────────────────────────────────────────────────────────────
 
     /**

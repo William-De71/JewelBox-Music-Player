@@ -100,6 +100,21 @@
     <string name="unfavorite">Retirer des favoris</string>
     <string name="new_mix">Relancer un mix complet</string>
     <string name="mix_remove_track">Retirer du mix</string>
+    <string name="mix_block_track">Ne plus jamais jouer</string>
+    <string name="mix_track_blocked">Ce titre ne sera plus joué dans le mix</string>
+    <string name="mix_blocked_title">Mix dynamique : titres exclus</string>
+    <string name="mix_blocked_none">Aucun titre exclu.</string>
+    <string name="mix_blocked_unavailable">Indisponible : serveur injoignable ou trop ancien (1.22 ou plus requis).</string>
+    <plurals name="mix_blocked_count">
+        <item quantity="one">%1$d titre exclu</item>
+        <item quantity="other">%1$d titres exclus</item>
+    </plurals>
+    <string name="mix_blocked_clear">Vider la liste noire</string>
+    <string name="mix_blocked_description">Les titres marqués « Ne plus jamais jouer » ne sont plus tirés dans le mix dynamique, sur tous vos appareils.</string>
+    <string name="mix_blocked_clear_title">Vider la liste noire ?</string>
+    <string name="mix_blocked_clear_text">Tous les titres exclus pourront de nouveau être tirés dans le mix dynamique.</string>
+    <string name="mix_blocked_clear_confirm">Vider</string>
+    <string name="mix_block_server_too_old">Liste noire indisponible : mettez à jour le serveur JewelBox (version 1.22 ou plus).</string>
 
     <!-- Recherche -->
     <string name="search_title">Recherche</string>
