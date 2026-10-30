@@ -2,6 +2,7 @@ package com.jewelbox.player.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.jewelbox.player.playback.LiveState
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -137,5 +138,69 @@ class QueueSyncRepositoryTest {
         val first = prefs.deviceId()
         assertTrue(first.isNotBlank())
         assertEquals(first, prefs.deviceId())
+    }
+
+    @Test
+    fun `ownQueue reads this device's queue`() = runTest {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody(queueJson))
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            val queue = repo.ownQueue()
+
+            assertEquals("/api/player/queue", server.takeRequest().path)
+            assertEquals(1, queue.currentIndex)
+        }
+    }
+
+    @Test
+    fun `track fetches a single queue-shaped track`() = runTest {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody("""{"id":5,"title":"So What","has_file":true}"""))
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            val track = repo.track(5)
+
+            assertEquals("/api/player/tracks/5", server.takeRequest().path)
+            assertEquals("So What", track.title)
+        }
+    }
+
+    @Test
+    fun `radio asks around an album or an artist`() = runTest {
+        MockWebServer().use { server ->
+            val radioJson = """{"seed":{"name":"Kind of Blue"},"tracks":[{"id":5,"title":"So What"}]}"""
+            server.enqueue(MockResponse().setBody(radioJson))
+            server.enqueue(MockResponse().setBody("""{"tracks":[]}"""))
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            val radio = repo.radio(albumId = 12)
+            repo.radio(artistId = 3)
+
+            assertEquals("/api/player/radio?album_id=12", server.takeRequest().path)
+            assertEquals("/api/player/radio?artist_id=3", server.takeRequest().path)
+            assertEquals("Kind of Blue", radio.seed?.name)
+            assertEquals(listOf(5), radio.tracks.map { it.id })
+        }
+    }
+
+    @Test
+    fun `reportLiveState sends every field`() = runTest {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(204))
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            repo.reportLiveState(
+                LiveState("playing", 5, 0, 1.5, 300.0, 80, false, "off", "JewelBox Android · Pixel", null),
+            )
+
+            val body = server.takeRequest().body.readUtf8()
+            assertTrue("\"playback_state\":\"playing\"" in body)
+            assertTrue("\"shuffle\":false" in body)
+        }
     }
 }

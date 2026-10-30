@@ -2,6 +2,8 @@ package com.jewelbox.player.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.jewelbox.player.playback.ReplayGainMode
+import com.jewelbox.player.playback.TRANSITION_FADE_CHOICES
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -66,5 +68,24 @@ class ServerPrefsTest {
 
         assertEquals("http://b/", prefs.serverUrl.first())
         assertEquals("id-b", prefs.serverId.first())
+    }
+
+    @Test
+    fun `playback settings read back what was set`() = runTest {
+        prefs.setRemoteControl(false)
+        prefs.setDownloadOnMobile(true)
+        prefs.setTransitionFade(TRANSITION_FADE_CHOICES.last())
+        prefs.setReplayGain(ReplayGainMode.TRACK)
+
+        assertEquals(false, prefs.remoteControl.first())
+        assertEquals(true, prefs.downloadOnMobile.first())
+        assertEquals(TRANSITION_FADE_CHOICES.last(), prefs.transitionFade.first())
+        assertEquals(ReplayGainMode.TRACK, prefs.replayGain.first())
+
+        // Back to the defaults: the store is shared by every test.
+        prefs.setRemoteControl(true)
+        prefs.setDownloadOnMobile(false)
+        prefs.setTransitionFade(0)
+        prefs.setReplayGain(ReplayGainMode.DEFAULT)
     }
 }
