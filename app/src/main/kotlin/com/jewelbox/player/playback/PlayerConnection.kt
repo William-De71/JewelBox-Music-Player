@@ -313,7 +313,11 @@ object PlayerConnection {
                 }
                 updateSourceLabel(defaultSourceLabel(_queueSource.value))
                 val items = saved.tracks.map { mediaItem(saved.serverUrl, it) }
-                c.setMediaItems(items, saved.index.coerceIn(0, items.lastIndex), saved.positionMs)
+                val index = saved.index.coerceIn(0, items.lastIndex)
+                c.setMediaItems(items, index, saved.positionMs)
+                // The player's events arrive after restoring is cleared: without
+                // this, the restored queue would be PUT again as if just played.
+                queueSyncPlanner.prime(saved.tracks.map { it.id }, index)
                 // prepare() without play(): buffered and ready, silent until asked.
                 c.prepare()
             } finally {

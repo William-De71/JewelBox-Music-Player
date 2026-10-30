@@ -25,6 +25,13 @@ class QueueSyncTest {
     }
 
     @Test
+    fun `a restored queue is not sent back`() {
+        val planner = QueueSyncPlanner()
+        planner.prime(listOf(1, 2), 1)
+        assertNull(planner.update(listOf(1, 2), 1, 42.0, false, 0.0))
+    }
+
+    @Test
     fun `a track change sends the state`() {
         val planner = QueueSyncPlanner()
         planner.update(listOf(1, 2), 0, 0.0, true, 0.0)
