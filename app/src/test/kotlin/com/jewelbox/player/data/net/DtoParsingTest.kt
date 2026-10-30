@@ -189,4 +189,30 @@ class DtoParsingTest {
         assertEquals(24, Pagination().limit)
         assertEquals("", HealthDto().status)
     }
+
+    @Test
+    fun `parses the player extras`() {
+        val gain = json.decodeFromString<ReplayGainDto>(
+            """{"track_gain":-6.5,"track_peak":0.98,"album_gain":-7.0,"album_peak":1.0}""",
+        )
+        assertEquals(-6.5, gain.trackGain!!, 0.0)
+        assertEquals(1.0, gain.albumPeak!!, 0.0)
+
+        val blocked = json.decodeFromString<DynamicMixBlockedDto>("""{"data":[{"id":5,"title":"T"}]}""")
+        assertEquals(5, blocked.data.single().id)
+        assertEquals(3, json.decodeFromString<DynamicMixClearedDto>("""{"cleared":3}""").cleared)
+
+        val smart = json.decodeFromString<SmartSummaryDto>("""{"key":"favourites","track_count":8}""")
+        assertEquals("favourites", smart.key)
+        assertEquals(8, smart.trackCount)
+
+        val lyrics = json.decodeFromString<LyricsDto>(
+            """{"source":"lrclib","synced":true,"lines":[{"time":1.5,"text":"Hello"}],"plain":"Hello"}""",
+        )
+        assertTrue(lyrics.synced)
+        assertFalse(lyrics.instrumental)
+        assertEquals("lrclib", lyrics.source)
+        assertEquals("Hello", lyrics.lines!!.single().text)
+        assertEquals("Hello", lyrics.plain)
+    }
 }

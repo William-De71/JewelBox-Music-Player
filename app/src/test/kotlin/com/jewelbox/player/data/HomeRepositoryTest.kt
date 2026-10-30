@@ -128,4 +128,54 @@ class HomeRepositoryTest {
             assertEquals(404, error.code())
         }
     }
+
+    @Test
+    fun `refreshSuggestions draws new albums`() = runTest {
+        MockWebServer().use { server ->
+            server.enqueue(
+                MockResponse().setBody("""{"suggestions":[{"id":22,"title":"Nevermind","artist":{"id":4,"name":"Nirvana"}}]}"""),
+            )
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            val suggestions = repo.refreshSuggestions()
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/api/player/home/suggestions", request.path)
+            assertEquals(listOf(22), suggestions.map { it.id })
+        }
+    }
+
+    @Test
+    fun `latestAlbums asks for the newest owned albums`() = runTest {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody("""{"data":[{"id":9,"title":"New","artist":{"id":1,"name":"X"}}]}"""))
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            val albums = repo.latestAlbums(count = 5)
+
+            val path = server.takeRequest().path.orEmpty()
+            assertTrue("limit=5" in path)
+            assertTrue("sort=created_at" in path)
+            assertTrue("order=desc" in path)
+            assertEquals(listOf(9), albums.map { it.id })
+        }
+    }
+
+    @Test
+    fun `reportSmartPlay posts the smart list by key`() = runTest {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(204))
+            server.start()
+            prefs.setServerUrl(server.url("/").toString())
+
+            repo.reportSmartPlay("dynamic_mix")
+
+            val body = server.takeRequest().body.readUtf8()
+            assertTrue("\"item_type\":\"smart\"" in body)
+            assertTrue("\"item_key\":\"dynamic_mix\"" in body)
+        }
+    }
 }

@@ -72,6 +72,13 @@ data class PlaybackUiState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
 )
 
+/** A queue ready to be handed to the player, and where to start in it. */
+data class QueueStart(
+    val items: List<MediaItem>,
+    val startIndex: Int,
+    val startPositionMs: Long,
+)
+
 /** Progress of the current item, refreshed every second (separate flow: only the
  *  now-playing screen needs it, the mini-player doesn't re-render on every tick). */
 data class PlaybackPosition(
@@ -512,8 +519,17 @@ object PlayerConnection {
      */
     fun playAlbum(serverUrl: String, album: AlbumDto, startTrackId: Int, offlineScope: String? = null) {
         val c = controller ?: return
+        prepareAlbum(serverUrl, album, startTrackId, offlineScope)?.playOn(c)
+    }
+
+    /**
+     * The queue [playAlbum] would start, with the same bookkeeping (source,
+     * history, resume), for a caller that hands it to the player itself:
+     * Android Auto, through the session (AutoLibrary.kt). Null when nothing is playable.
+     */
+    fun prepareAlbum(serverUrl: String, album: AlbumDto, startTrackId: Int, offlineScope: String? = null): QueueStart? {
         val playable = album.tracks.filter { it.hasFile }
-        if (playable.isEmpty()) return
+        if (playable.isEmpty()) return null
         dynamicMix = false
         queueServerUrl = serverUrl
         _queueSource.value = QueueSource.Album(album.id)
@@ -522,7 +538,11 @@ object PlayerConnection {
         val startIndex = playable.indexOfFirst { it.id == startTrackId }.coerceAtLeast(0)
         val trackScope = offlineScope ?: Offline.currentScope.value
         val items = playable.map { track -> mediaItem(serverUrl, album, track, trackScope) }
-        c.setMediaItems(items, startIndex, 0L)
+        return QueueStart(items, startIndex, 0L)
+    }
+
+    private fun QueueStart.playOn(c: MediaController) {
+        c.setMediaItems(items, startIndex, startPositionMs)
         c.prepare()
         c.play()
         saveQueue()
@@ -545,8 +565,23 @@ object PlayerConnection {
         offlineScope: String? = null,
     ) {
         val c = controller ?: return
+        prepareQueue(serverUrl, tracks, startIndex, dynamicMix, source, startPositionMs, sourceLabel, offlineScope)
+            ?.playOn(c)
+    }
+
+    /** The queue [playQueue] would start, for Android Auto (see [prepareAlbum]). */
+    fun prepareQueue(
+        serverUrl: String,
+        tracks: List<QueueTrackDto>,
+        startIndex: Int = 0,
+        dynamicMix: Boolean = false,
+        source: QueueSource? = null,
+        startPositionMs: Long = 0L,
+        sourceLabel: String? = null,
+        offlineScope: String? = null,
+    ): QueueStart? {
         val playable = tracks.filter { it.hasFile }
-        if (playable.isEmpty()) return
+        if (playable.isEmpty()) return null
         this.dynamicMix = dynamicMix
         queueServerUrl = serverUrl
         _queueSource.value = source
@@ -554,10 +589,7 @@ object PlayerConnection {
         reportPlayStarted(source)
         val trackScope = offlineScope ?: Offline.currentScope.value
         val items = playable.map { mediaItem(serverUrl, it, trackScope) }
-        c.setMediaItems(items, startIndex.coerceIn(0, items.lastIndex), startPositionMs.coerceAtLeast(0L))
-        c.prepare()
-        c.play()
-        saveQueue()
+        return QueueStart(items, startIndex.coerceIn(0, items.lastIndex), startPositionMs.coerceAtLeast(0L))
     }
 
     /**
