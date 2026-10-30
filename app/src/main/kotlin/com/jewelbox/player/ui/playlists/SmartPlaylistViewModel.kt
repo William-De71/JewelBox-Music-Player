@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.playback.PlayerConnection
+import com.jewelbox.player.ui.search.SearchLogic
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,17 +64,28 @@ class SmartPlaylistViewModel(private val smartKey: String) : ViewModel() {
         }
     }
 
-    /** Dynamic mix only: drops a disliked track; the playing queue follows. */
-    fun removeMixTrack(trackId: Int) {
+    /**
+     * Dynamic mix only: drops a disliked track; the playing queue follows.
+     * [block] also blacklists it, so the mix never draws it again.
+     */
+    fun removeMixTrack(trackId: Int, block: Boolean) {
         viewModelScope.launch {
-            runCatching { repo.removeDynamicMixTrack(trackId) }
+            runCatching {
+                if (block) repo.blockDynamicMixTrack(trackId) else repo.removeDynamicMixTrack(trackId)
+            }
                 .onSuccess { res ->
                     (_state.value as? SmartPlaylistUiState.Loaded)
                         ?.let { _state.value = it.copy(tracks = res.tracks) }
                     PlayerConnection.onDynamicMixTrackRemoved(res.tracks)
-                    _notice.value = PlaylistNotice.TrackRemoved
+                    _notice.value = if (block) PlaylistNotice.TrackBlocked else PlaylistNotice.TrackRemoved
                 }
-                .onFailure { _notice.value = PlaylistNotice.Failed(it.message) }
+                .onFailure {
+                    _notice.value = if (block && SearchLogic.isServerTooOld(it)) {
+                        PlaylistNotice.BlockServerTooOld
+                    } else {
+                        PlaylistNotice.Failed(it.message)
+                    }
+                }
         }
     }
 

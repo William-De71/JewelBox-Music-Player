@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,11 +26,16 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -165,10 +171,60 @@ fun SettingsScreen(
             HorizontalDivider()
             Spacer(Modifier.height(24.dp))
 
+            BlockedTracksSection(
+                count = state.blockedCount,
+                clearing = state.clearingBlocked,
+                onClear = vm::clearBlocked,
+            )
+
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(24.dp))
+
             Text(stringResource(R.string.offline_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onOpenDownloads) { Text(stringResource(R.string.offline_manage)) }
         }
+    }
+}
+
+/** Dynamic mix blacklist ("Ne plus jamais jouer"): how many tracks, and a way to empty it. */
+@Composable
+private fun BlockedTracksSection(count: Int?, clearing: Boolean, onClear: () -> Unit) {
+    var confirming by remember { mutableStateOf(false) }
+    Text(stringResource(R.string.mix_blocked_title), style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(8.dp))
+    Text(
+        when (count) {
+            null -> stringResource(R.string.mix_blocked_unavailable)
+            0 -> stringResource(R.string.mix_blocked_none)
+            else -> pluralStringResource(R.plurals.mix_blocked_count, count, count)
+        },
+        style = MaterialTheme.typography.bodyLarge,
+    )
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(onClick = { confirming = true }, enabled = (count ?: 0) > 0 && !clearing) {
+        Text(stringResource(R.string.mix_blocked_clear))
+    }
+    Text(
+        stringResource(R.string.mix_blocked_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(R.string.mix_blocked_clear_title)) },
+            text = { Text(stringResource(R.string.mix_blocked_clear_text)) },
+            confirmButton = {
+                TextButton(onClick = { confirming = false; onClear() }) {
+                    Text(stringResource(R.string.mix_blocked_clear_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 }
 

@@ -67,6 +67,16 @@ class PlaylistRepository(private val prefs: ServerPrefs) {
     suspend fun removeDynamicMixTrack(trackId: Int): DynamicMixPlayedDto =
         api().dynamicMixRemove(trackId)
 
+    /** Drops a track from the mix and blocks it so it is never drawn again. */
+    suspend fun blockDynamicMixTrack(trackId: Int): DynamicMixPlayedDto =
+        api().dynamicMixBlock(DynamicMixPlayedBody(trackId))
+
+    /** Number of tracks the dynamic mix never draws. */
+    suspend fun blockedDynamicMixCount(): Int = api().dynamicMixBlocked().data.size
+
+    /** Lets every blocked track back into the dynamic mix. */
+    suspend fun clearBlockedDynamicMix(): Int = api().dynamicMixClearBlocked().cleared
+
     // ── Favoris ──────────────────────────────────────────────────────────────
 
     suspend fun setFavorite(trackId: Int, isFavorite: Boolean) =

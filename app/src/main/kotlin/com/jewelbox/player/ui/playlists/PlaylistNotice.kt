@@ -14,6 +14,8 @@ sealed interface PlaylistNotice {
     data object Renamed : PlaylistNotice
     data object Deleted : PlaylistNotice
     data object TrackRemoved : PlaylistNotice
+    data object TrackBlocked : PlaylistNotice
+    data object BlockServerTooOld : PlaylistNotice
     data class TracksAdded(val count: Int) : PlaylistNotice
     data class Failed(val detail: String?) : PlaylistNotice
 }
@@ -24,6 +26,8 @@ fun noticeText(notice: PlaylistNotice): String = when (notice) {
     is PlaylistNotice.Renamed -> stringResource(R.string.playlist_renamed)
     is PlaylistNotice.Deleted -> stringResource(R.string.playlist_deleted)
     is PlaylistNotice.TrackRemoved -> stringResource(R.string.track_removed)
+    is PlaylistNotice.TrackBlocked -> stringResource(R.string.mix_track_blocked)
+    is PlaylistNotice.BlockServerTooOld -> stringResource(R.string.mix_block_server_too_old)
     is PlaylistNotice.TracksAdded -> stringResource(R.string.tracks_added, notice.count)
     is PlaylistNotice.Failed -> stringResource(
         R.string.error_with_detail,
