@@ -15,6 +15,8 @@ import com.jewelbox.player.ui.player.NowPlayingScreen
 import com.jewelbox.player.ui.playlists.PlaylistDetailScreen
 import com.jewelbox.player.ui.playlists.PlaylistsScreen
 import com.jewelbox.player.ui.playlists.SmartPlaylistScreen
+import com.jewelbox.player.ui.remote.RemoteControlScreen
+import com.jewelbox.player.ui.remote.RemoteDevicesScreen
 import com.jewelbox.player.ui.search.SearchScreen
 import com.jewelbox.player.ui.settings.SettingsScreen
 
@@ -29,9 +31,12 @@ private object Routes {
     const val PLAYLIST_DETAIL = "playlist/{playlistId}"
     const val SMART_PLAYLIST = "smart/{smartKey}"
     const val DOWNLOADS = "downloads"
+    const val REMOTE = "remote"
+    const val REMOTE_DEVICE = "remote/{deviceId}"
     fun albumDetail(id: Int) = "album/$id"
     fun playlistDetail(id: Int) = "playlist/$id"
     fun smartPlaylist(key: String) = "smart/$key"
+    fun remoteDevice(id: String) = "remote/${android.net.Uri.encode(id)}"
 }
 
 @Composable
@@ -55,6 +60,7 @@ fun AppNav() {
         }
     }
     val openPlayer = { nav.navigate(Routes.NOW_PLAYING) }
+    val openRemote = { nav.navigate(Routes.REMOTE) }
 
     // Every screen but the full player carries the same bottom bar; [current]
     // highlights the tab the screen belongs to (null on Settings).
@@ -74,6 +80,7 @@ fun AppNav() {
                 onOpenPlaylist = { id -> nav.navigate(Routes.playlistDetail(id)) },
                 onOpenSmart = { key -> nav.navigate(Routes.smartPlaylist(key)) },
                 onOpenDownloads = { nav.navigate(Routes.DOWNLOADS) },
+                onOpenRemote = openRemote,
                 bottomBar = { bottomBar(RootTab.HOME) },
             )
         }
@@ -132,6 +139,23 @@ fun AppNav() {
         }
         composable(Routes.NOW_PLAYING) {
             NowPlayingScreen(
+                onBack = { nav.popBackStack() },
+                onOpenRemote = openRemote,
+            )
+        }
+        composable(Routes.REMOTE) {
+            RemoteDevicesScreen(
+                onBack = { nav.popBackStack() },
+                onOpenDevice = { id -> nav.navigate(Routes.remoteDevice(id)) },
+            )
+        }
+        composable(
+            route = Routes.REMOTE_DEVICE,
+            arguments = listOf(navArgument("deviceId") { type = NavType.StringType }),
+        ) { entry ->
+            val deviceId = entry.arguments?.getString("deviceId") ?: return@composable
+            RemoteControlScreen(
+                deviceId = deviceId,
                 onBack = { nav.popBackStack() },
             )
         }

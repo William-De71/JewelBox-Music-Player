@@ -80,6 +80,7 @@ fun HomeScreen(
     onOpenPlaylist: (Int) -> Unit,
     onOpenSmart: (String) -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenRemote: () -> Unit,
     bottomBar: @Composable () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
@@ -101,6 +102,9 @@ fun HomeScreen(
                         IconButton(onClick = onOpenDownloads) {
                             Icon(Icons.Filled.DownloadForOffline, contentDescription = stringResource(R.string.offline_title))
                         }
+                    }
+                    IconButton(onClick = onOpenRemote) {
+                        Icon(Icons.Filled.Devices, contentDescription = stringResource(R.string.remote_devices_open))
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))

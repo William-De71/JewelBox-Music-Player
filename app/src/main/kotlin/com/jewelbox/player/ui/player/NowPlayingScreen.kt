@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -65,7 +66,7 @@ import com.jewelbox.player.playback.RepeatMode
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NowPlayingScreen(onBack: () -> Unit) {
+fun NowPlayingScreen(onBack: () -> Unit, onOpenRemote: () -> Unit) {
     val state by PlayerConnection.state.collectAsStateWithLifecycle()
     val position by PlayerConnection.position.collectAsStateWithLifecycle()
     var showLyrics by remember { mutableStateOf(false) }
@@ -80,6 +81,9 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenRemote) {
+                        Icon(Icons.Filled.Devices, contentDescription = stringResource(R.string.remote_devices_open))
+                    }
                     if (state.hasItem) {
                         IconButton(onClick = { showLyrics = !showLyrics }) {
                             Icon(
