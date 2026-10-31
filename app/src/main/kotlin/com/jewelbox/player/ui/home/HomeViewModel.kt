@@ -90,6 +90,16 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Only the "resume from…" card, when the app comes back to the foreground:
+     * the ViewModel outlives a trip to the background, and something may have
+     * played on another device meanwhile (desktop parity: window re-activated).
+     */
+    fun refreshResume() {
+        if (_state.value !is HomeUiState.Loaded) return
+        viewModelScope.launch { refreshResumable() }
+    }
+
     /** Best-effort: an old server without the queue routes simply shows nothing. */
     private suspend fun refreshResumable() {
         val repo = ServiceLocator.queueSyncRepository

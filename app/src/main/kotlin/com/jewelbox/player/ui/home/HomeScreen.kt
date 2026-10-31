@@ -50,6 +50,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -87,6 +89,8 @@ fun HomeScreen(
     val resumable by vm.resumable.collectAsStateWithLifecycle()
     val refreshingSuggestions by vm.refreshingSuggestions.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // Back to the app (or to this screen): another device may have played since.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refreshResume() }
 
     Scaffold(
         topBar = {
