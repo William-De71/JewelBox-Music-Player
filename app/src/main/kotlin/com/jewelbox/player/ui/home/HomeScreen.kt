@@ -50,6 +50,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -78,6 +80,7 @@ fun HomeScreen(
     onOpenPlaylist: (Int) -> Unit,
     onOpenSmart: (String) -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenRemote: () -> Unit,
     bottomBar: @Composable () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
@@ -87,6 +90,8 @@ fun HomeScreen(
     val resumable by vm.resumable.collectAsStateWithLifecycle()
     val refreshingSuggestions by vm.refreshingSuggestions.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // Back to the app (or to this screen): another device may have played since.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refreshResume() }
 
     Scaffold(
         topBar = {
@@ -97,6 +102,9 @@ fun HomeScreen(
                         IconButton(onClick = onOpenDownloads) {
                             Icon(Icons.Filled.DownloadForOffline, contentDescription = stringResource(R.string.offline_title))
                         }
+                    }
+                    IconButton(onClick = onOpenRemote) {
+                        Icon(Icons.Filled.Devices, contentDescription = stringResource(R.string.remote_devices_open))
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))

@@ -382,3 +382,40 @@ data class RadioDto(
 data class RadioSeedDto(
     val name: String = "",
 )
+
+/**
+ * A player listed by GET /api/player/remote/devices (server >= 1.18), and in
+ * the "devices" / "device" events of GET /api/player/remote/watch. Only a
+ * [controllable] one (its event stream is open) accepts commands.
+ */
+@Serializable
+data class RemoteDeviceDto(
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_label") val deviceLabel: String? = null,
+    val controllable: Boolean = false,
+    val capabilities: List<String> = emptyList(),
+    val state: RemoteStateDto? = null,
+)
+
+/** The live state a player last reported (see the server's utils/remote.js). */
+@Serializable
+data class RemoteStateDto(
+    @SerialName("playback_state") val playbackState: String = "idle",
+    @SerialName("position_sec") val positionSec: Double = 0.0,
+    @SerialName("duration_sec") val durationSec: Double = 0.0,
+    @SerialName("current_index") val currentIndex: Int = -1,
+    @SerialName("track_id") val trackId: Int? = null,
+    val volume: Int? = null,
+    val muted: Boolean? = null,
+    val shuffle: Boolean? = null,
+    val repeat: String? = null,
+    /** The current track, resolved by the server (queue-shaped). */
+    val track: QueueTrackDto? = null,
+    /** ISO date of the report, to extrapolate the position while playing. */
+    @SerialName("reported_at") val reportedAt: String? = null,
+)
+
+@Serializable
+data class RemoteDevicesResponse(
+    val data: List<RemoteDeviceDto> = emptyList(),
+)

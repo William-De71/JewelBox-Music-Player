@@ -54,6 +54,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jewelbox.player.playback.Offline
 import com.jewelbox.player.ui.offline.OfflineAction
+import com.jewelbox.player.playback.RemoteMedia
+import com.jewelbox.player.ui.remote.PlayOnDeviceAction
 import com.jewelbox.player.ui.offline.rememberOfflineStatus
 import coil.compose.AsyncImage
 import com.jewelbox.player.R
@@ -102,6 +104,7 @@ fun AlbumDetailScreen(
                         val offline = rememberOfflineStatus {
                             Offline.albumStatus(Offline.currentScope.value, loaded.album)
                         }
+                        PlayOnDeviceAction(RemoteMedia.Album(loaded.album.id))
                         OfflineAction(offline, onDownload = vm::download, onRemove = vm::removeDownload)
                         IconButton(onClick = { vm.openAddToPlaylist() }) {
                             Icon(

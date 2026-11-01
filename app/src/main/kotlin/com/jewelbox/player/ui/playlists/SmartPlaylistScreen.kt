@@ -31,6 +31,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import com.jewelbox.player.playback.RemoteMedia
+import com.jewelbox.player.ui.remote.PlayOnDeviceAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -88,6 +90,7 @@ fun SmartPlaylistScreen(
                     }
                 },
                 actions = {
+                    PlayOnDeviceAction(RemoteMedia.Smart(smartKey))
                     // The dynamic mix can be thrown away and redrawn from scratch.
                     if (smartKey == DYNAMIC_MIX_KEY) {
                         IconButton(onClick = vm::refreshMix) {

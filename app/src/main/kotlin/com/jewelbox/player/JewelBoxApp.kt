@@ -8,6 +8,7 @@ import com.jewelbox.player.data.HomeRepository
 import com.jewelbox.player.data.PlaybackStateStore
 import com.jewelbox.player.data.PlaylistRepository
 import com.jewelbox.player.data.QueueSyncRepository
+import com.jewelbox.player.data.RemoteRepository
 import com.jewelbox.player.data.ServerPrefs
 import com.jewelbox.player.data.net.ServerDiscovery
 import com.jewelbox.player.data.offline.OfflineStore
@@ -49,6 +50,8 @@ object ServiceLocator {
         private set
     lateinit var offlineStore: OfflineStore
         private set
+    lateinit var remoteRepository: RemoteRepository
+        private set
 
     fun init(app: Application) {
         serverPrefs = ServerPrefs(app.applicationContext)
@@ -56,6 +59,7 @@ object ServiceLocator {
         playlistRepository = PlaylistRepository(serverPrefs)
         homeRepository = HomeRepository(serverPrefs)
         queueSyncRepository = QueueSyncRepository(serverPrefs)
+        remoteRepository = RemoteRepository(serverPrefs)
         playbackStateStore = PlaybackStateStore(app.applicationContext)
         offlineStore = OfflineStore(app.applicationContext)
         serverDiscovery = ServerDiscovery(

@@ -47,6 +47,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jewelbox.player.R
 import com.jewelbox.player.playback.Offline
 import com.jewelbox.player.ui.offline.OfflineAction
+import com.jewelbox.player.playback.RemoteMedia
+import com.jewelbox.player.ui.remote.PlayOnDeviceAction
 import com.jewelbox.player.ui.offline.rememberOfflineStatus
 import com.jewelbox.player.data.net.PlaylistDto
 import com.jewelbox.player.playback.PlayerConnection
@@ -96,6 +98,7 @@ fun PlaylistDetailScreen(
                         val offline = rememberOfflineStatus {
                             Offline.playlistStatus(Offline.currentScope.value, loaded.playlist)
                         }
+                        PlayOnDeviceAction(RemoteMedia.Playlist(loaded.playlist.id))
                         OfflineAction(offline, onDownload = vm::download, onRemove = vm::removeDownload)
                         IconButton(onClick = { renameOpen = true }) {
                             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.playlist_rename))

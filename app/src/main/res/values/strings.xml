@@ -140,7 +140,24 @@
     <!-- Découverte mDNS -->
     <string name="remote_control_title">Contrôle à distance</string>
     <string name="remote_control_label">Autoriser le contrôle à distance</string>
-    <string name="remote_control_description">Un autre client du serveur, comme Gladys, peut piloter ce lecteur : lecture, pause, piste suivante, volume, lancer un album. Tant que l’application est ouverte ou joue.</string>
+    <string name="remote_control_description">Un autre appareil (le lecteur bureau, un autre téléphone) ou Gladys peut piloter ce lecteur : lecture, pause, piste suivante, volume, lancer un album. Tant que l’application est ouverte ou joue.</string>
+    <string name="remote_devices_title">Appareils</string>
+    <string name="remote_devices_open">Contrôler un autre appareil</string>
+    <string name="remote_devices_empty">Aucun autre lecteur à piloter.\nSur l’appareil voulu, activez « Autoriser le contrôle à distance » et laissez le lecteur ouvert.</string>
+    <string name="remote_unnamed_device">Lecteur sans nom</string>
+    <string name="remote_nothing_playing">Rien en lecture</string>
+    <string name="remote_state_playing">En lecture</string>
+    <string name="remote_state_paused">En pause</string>
+    <string name="remote_state_idle">À l’arrêt</string>
+    <string name="remote_device_gone">Cet appareil n’est plus disponible.\nSon lecteur a peut-être été fermé.</string>
+    <string name="remote_command_failed">La commande n’a pas abouti</string>
+    <string name="remote_mute">Couper le son</string>
+    <string name="remote_unmute">Rétablir le son</string>
+    <string name="remote_queue_title">File d’attente</string>
+    <string name="remote_play_on">Lire sur…</string>
+    <string name="remote_play_on_searching">Recherche des lecteurs…</string>
+    <string name="remote_play_on_none">Aucun lecteur disponible</string>
+    <string name="remote_play_on_started">Lecture lancée sur %1$s</string>
     <string name="remote_radio_label">Radio · %1$s</string>
     <string name="offline_title">Téléchargements</string>
     <string name="offline_download">Télécharger pour l’écoute hors-ligne</string>

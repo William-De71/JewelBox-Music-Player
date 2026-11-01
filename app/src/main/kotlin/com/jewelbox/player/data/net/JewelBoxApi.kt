@@ -186,6 +186,17 @@ interface JewelBoxApi {
     @GET("api/player/queue/devices/{deviceId}")
     suspend fun deviceQueue(@Path("deviceId") deviceId: String): DeviceQueueDto
 
+    /** Players seen by the server for the remote control (server >= 1.18; 404 before). */
+    @GET("api/player/remote/devices")
+    suspend fun remoteDevices(): RemoteDevicesResponse
+
+    /** A command for another player (see RemoteCommands), 202 once relayed to it. */
+    @POST("api/player/remote/devices/{deviceId}/commands")
+    suspend fun remoteCommand(
+        @Path("deviceId") deviceId: String,
+        @Body command: kotlinx.serialization.json.JsonObject,
+    )
+
     // ── Favoris ──────────────────────────────────────────────────────────────
 
     @PATCH("api/player/tracks/{id}/favorite")
