@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.jewelbox.player.ServiceLocator
 import com.jewelbox.player.data.net.DeviceQueueDto
 import com.jewelbox.player.data.net.RemoteDeviceDto
+import com.jewelbox.player.playback.PlayerConnection
+import com.jewelbox.player.playback.RemoteCommands
 import com.jewelbox.player.playback.RemoteWatch
 import com.jewelbox.player.playback.controllableOthers
+import com.jewelbox.player.playback.takeOverQueue
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,6 +47,10 @@ class RemoteViewModel : ViewModel() {
     /** A command the server refused or could not relay (toast). */
     private val _commandFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val commandFailed: SharedFlow<Unit> = _commandFailed.asSharedFlow()
+
+    /** "Listen here" done: true when playback moved to this phone, false when it could not. */
+    private val _listenedHere = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+    val listenedHere: SharedFlow<Boolean> = _listenedHere.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -84,6 +91,24 @@ class RemoteViewModel : ViewModel() {
         viewModelScope.launch {
             runCatching { repo.send(target, command) }
                 .onFailure { _commandFailed.tryEmit(Unit) }
+        }
+    }
+
+    /**
+     * "Listen here": plays that player's queue on this phone, at its track and
+     * position right now, then pauses it there.
+     */
+    fun listenHere(deviceId: String) {
+        viewModelScope.launch {
+            val queue = runCatching { repo.queue(deviceId) }.getOrNull()
+            val state = _devices.value?.firstOrNull { it.deviceId == deviceId }?.state
+            val started = queue != null && PlayerConnection.resumeQueue(
+                _serverUrl.value, takeOverQueue(queue, state, System.currentTimeMillis()),
+            )
+            if (started && state?.playbackState == "playing") {
+                runCatching { repo.send(deviceId, RemoteCommands.simple("pause")) }
+            }
+            _listenedHere.tryEmit(started)
         }
     }
 }

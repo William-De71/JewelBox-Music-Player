@@ -61,6 +61,13 @@ fun AppNav() {
     }
     val openPlayer = { nav.navigate(Routes.NOW_PLAYING) }
     val openRemote = { nav.navigate(Routes.REMOTE) }
+    // "Listen here" done: the remote screens make way for this phone's player.
+    val openNowPlayingFromRemote = {
+        nav.navigate(Routes.NOW_PLAYING) {
+            popUpTo(Routes.REMOTE) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
 
     // Every screen but the full player carries the same bottom bar; [current]
     // highlights the tab the screen belongs to (null on Settings).
@@ -147,6 +154,7 @@ fun AppNav() {
             RemoteDevicesScreen(
                 onBack = { nav.popBackStack() },
                 onOpenDevice = { id -> nav.navigate(Routes.remoteDevice(id)) },
+                onListenedHere = openNowPlayingFromRemote,
             )
         }
         composable(
@@ -157,6 +165,7 @@ fun AppNav() {
             RemoteControlScreen(
                 deviceId = deviceId,
                 onBack = { nav.popBackStack() },
+                onListenedHere = openNowPlayingFromRemote,
             )
         }
         composable(Routes.DOWNLOADS) {

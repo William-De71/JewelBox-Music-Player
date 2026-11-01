@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -36,6 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -79,6 +81,7 @@ import kotlinx.coroutines.delay
 fun RemoteControlScreen(
     deviceId: String,
     onBack: () -> Unit,
+    onListenedHere: () -> Unit,
     vm: RemoteViewModel = viewModel(),
 ) {
     LaunchedEffect(deviceId) { vm.select(deviceId) }
@@ -87,6 +90,7 @@ fun RemoteControlScreen(
     val queue by vm.queue.collectAsStateWithLifecycle()
     val device = devices?.firstOrNull { it.deviceId == deviceId }
     CommandFailedToast(vm)
+    ListenedHereEffect(vm, onListenedHere)
 
     Scaffold(
         topBar = {
@@ -138,6 +142,18 @@ fun RemoteControlScreen(
         ) {
             item(key = "player") {
                 RemotePlayer(device, serverUrl, vm::send)
+            }
+            if (device.state?.track != null) {
+                item(key = "listen-here") {
+                    OutlinedButton(
+                        onClick = { vm.listenHere(deviceId) },
+                        modifier = Modifier.padding(top = 16.dp),
+                    ) {
+                        Icon(Icons.Filled.InstallMobile, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.remote_listen_here))
+                    }
+                }
             }
             if ("queue" in device.capabilities && tracks.isNotEmpty()) {
                 item(key = "queue-title") {
