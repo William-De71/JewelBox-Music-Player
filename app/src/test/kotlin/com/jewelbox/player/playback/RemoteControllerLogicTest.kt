@@ -1,5 +1,7 @@
 package com.jewelbox.player.playback
 
+import com.jewelbox.player.data.net.DeviceQueueDto
+import com.jewelbox.player.data.net.QueueTrackDto
 import com.jewelbox.player.data.net.RemoteDeviceDto
 import com.jewelbox.player.data.net.RemoteStateDto
 import kotlinx.serialization.json.Json
@@ -67,6 +69,35 @@ class RemoteControllerLogicTest {
         assertEquals(60.0, livePositionSec(playing, at - 5_000), 0.001)
         assertEquals(60.0, livePositionSec(playing.copy(playbackState = "paused"), at + 10_000), 0.001)
         assertEquals(60.0, livePositionSec(playing.copy(reportedAt = "yesterday"), at + 10_000), 0.001)
+    }
+
+    // --- takeOverQueue ----------------------------------------------------------
+
+    @Test
+    fun `listen here starts at the live track and position`() {
+        val at = Instant.parse("2026-10-31T13:34:22.588Z").toEpochMilli()
+        val queue = DeviceQueueDto(
+            deviceId = "desk", currentIndex = 0, positionSec = 5.0,
+            tracks = listOf(7, 8, 9).map { QueueTrackDto(id = it, title = "T$it", hasFile = true) },
+        )
+        val live = RemoteStateDto(
+            playbackState = "playing", positionSec = 60.0, durationSec = 200.0,
+            currentIndex = 1, trackId = 8, reportedAt = "2026-10-31T13:34:22.588Z",
+        )
+        val taken = takeOverQueue(queue, live, at + 10_000)
+        assertEquals(1, taken.currentIndex)
+        assertEquals(70.0, taken.positionSec, 0.001)
+        assertEquals(queue.tracks, taken.tracks)
+
+        // Live index not matching (shuffled elsewhere), but the saved one does.
+        val saved = takeOverQueue(queue, live.copy(currentIndex = 2, trackId = 7), at)
+        assertEquals(0, saved.currentIndex)
+        assertEquals(60.0, saved.positionSec, 0.001)
+
+        // A track the saved queue doesn't know yet, or no live state: as saved.
+        assertEquals(queue, takeOverQueue(queue, live.copy(trackId = 42), at))
+        assertEquals(queue, takeOverQueue(queue, null, at))
+        assertEquals(queue, takeOverQueue(queue, live.copy(trackId = null), at))
     }
 
     // --- commands ---------------------------------------------------------------

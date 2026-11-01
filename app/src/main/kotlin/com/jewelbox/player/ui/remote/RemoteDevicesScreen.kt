@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -56,11 +57,13 @@ import com.jewelbox.player.playback.RemoteCommands
 fun RemoteDevicesScreen(
     onBack: () -> Unit,
     onOpenDevice: (String) -> Unit,
+    onListenedHere: () -> Unit,
     vm: RemoteViewModel = viewModel(),
 ) {
     val devices by vm.devices.collectAsStateWithLifecycle()
     val serverUrl by vm.serverUrl.collectAsStateWithLifecycle()
     CommandFailedToast(vm)
+    ListenedHereEffect(vm, onListenedHere)
 
     Scaffold(
         topBar = {
@@ -100,6 +103,7 @@ fun RemoteDevicesScreen(
                             serverUrl = serverUrl,
                             onOpen = { onOpenDevice(device.deviceId) },
                             onTogglePlay = { vm.send(RemoteCommands.simple("toggle"), device.deviceId) },
+                            onListenHere = { vm.listenHere(device.deviceId) },
                         )
                     }
                 }
@@ -114,6 +118,7 @@ private fun DeviceCard(
     serverUrl: String,
     onOpen: () -> Unit,
     onTogglePlay: () -> Unit,
+    onListenHere: () -> Unit,
 ) {
     val state = device.state
     val track = state?.track
@@ -177,6 +182,9 @@ private fun DeviceCard(
             }
             if (track != null) {
                 val playing = state.playbackState == "playing"
+                IconButton(onClick = onListenHere) {
+                    Icon(Icons.Filled.InstallMobile, contentDescription = stringResource(R.string.remote_listen_here))
+                }
                 IconButton(onClick = onTogglePlay) {
                     Icon(
                         if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -208,6 +216,21 @@ internal fun CommandFailedToast(vm: RemoteViewModel) {
     LaunchedEffect(vm) {
         vm.commandFailed.collect {
             Toast.makeText(context, R.string.remote_command_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+/** After "Listen here": on to this phone's player, or a toast when it could not. */
+@Composable
+internal fun ListenedHereEffect(vm: RemoteViewModel, onListenedHere: () -> Unit) {
+    val context = LocalContext.current
+    LaunchedEffect(vm) {
+        vm.listenedHere.collect { started ->
+            if (started) {
+                onListenedHere()
+            } else {
+                Toast.makeText(context, R.string.remote_listen_here_failed, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }

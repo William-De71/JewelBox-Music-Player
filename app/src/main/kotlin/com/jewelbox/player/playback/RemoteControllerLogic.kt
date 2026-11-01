@@ -1,5 +1,6 @@
 package com.jewelbox.player.playback
 
+import com.jewelbox.player.data.net.DeviceQueueDto
 import com.jewelbox.player.data.net.RemoteDeviceDto
 import com.jewelbox.player.data.net.RemoteDevicesResponse
 import com.jewelbox.player.data.net.RemoteStateDto
@@ -63,6 +64,22 @@ fun livePositionSec(state: RemoteStateDto, nowMs: Long): Double {
     val elapsed = ((nowMs - reportedMs) / 1000.0).coerceAtLeast(0.0)
     val position = state.positionSec + elapsed
     return if (state.durationSec > 0) position.coerceAtMost(state.durationSec) else position
+}
+
+/**
+ * "Listen here": the queue that player saved on the server, set to where it
+ * is right now. Its live track and position are fresher than the saved ones
+ * (saved every 30 s or so while playing); they stay when the live state
+ * doesn't match that queue (a change not saved yet).
+ */
+fun takeOverQueue(queue: DeviceQueueDto, state: RemoteStateDto?, nowMs: Long): DeviceQueueDto {
+    val trackId = state?.trackId ?: return queue
+    val index = when (trackId) {
+        queue.tracks.getOrNull(state.currentIndex)?.id -> state.currentIndex
+        queue.tracks.getOrNull(queue.currentIndex)?.id -> queue.currentIndex
+        else -> return queue
+    }
+    return queue.copy(currentIndex = index, positionSec = livePositionSec(state, nowMs))
 }
 
 private fun parseIsoMs(value: String?): Long? = try {
