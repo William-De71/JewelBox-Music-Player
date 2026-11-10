@@ -727,10 +727,12 @@ object PlayerConnection {
         val trackId = item.mediaId.toIntOrNull() ?: return
         val next = !(item.mediaMetadata.extras?.getBoolean(EXTRA_IS_FAVORITE) ?: false)
         c.replaceMediaItem(c.currentMediaItemIndex, withFavorite(item, next))
+        rememberFavorite(trackId, next)
         scope.launch {
             runCatching { ServiceLocator.playlistRepository.setFavorite(trackId, next) }
                 .onFailure {
                     // Server refused: put the flag back as it was, wherever the item is now.
+                    rememberFavorite(trackId, !next)
                     val cc = controller ?: return@launch
                     val idx = (0 until cc.mediaItemCount)
                         .firstOrNull { cc.getMediaItemAt(it).mediaId == item.mediaId }
@@ -738,6 +740,13 @@ object PlayerConnection {
                     cc.replaceMediaItem(idx, withFavorite(cc.getMediaItemAt(idx), !next))
                 }
         }
+    }
+
+    /** The queue saved for the next app start carries the flag too. */
+    private fun rememberFavorite(trackId: Int, favorite: Boolean) {
+        val saved = savedTracks[trackId] ?: return
+        savedTracks[trackId] = saved.copy(isFavorite = favorite)
+        saveQueue()
     }
 
     private fun withFavorite(item: MediaItem, favorite: Boolean): MediaItem {
