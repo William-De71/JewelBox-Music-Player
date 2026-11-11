@@ -63,7 +63,7 @@ class DtoParsingTest {
           "tracks": [
             {"id": 100, "position": 1, "title": "One More Time", "duration": "5:20",
              "has_file": true, "play_count": 12, "is_favorite": true},
-            {"id": 101, "position": 2, "title": "Aerodynamic", "duration": null,
+            {"id": 101, "disc": 2, "position": 2, "title": "Aerodynamic", "duration": null,
              "has_file": false, "play_count": 0, "is_favorite": false}
           ]
         }
@@ -83,6 +83,8 @@ class DtoParsingTest {
         assertEquals(12, album.tracks[0].playCount)
         assertFalse(album.tracks[1].hasFile)
         assertNull(album.tracks[1].duration)
+        // The CD of a track: 1 when the server does not give it (< 1.26).
+        assertEquals(listOf(1, 2), album.tracks.map { it.disc })
     }
 
     @Test

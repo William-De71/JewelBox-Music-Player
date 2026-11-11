@@ -88,6 +88,8 @@ data class TrackDto(
     @SerialName("play_count") val playCount: Int = 0,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
     val replaygain: ReplayGainDto? = null,
+    /** The CD of the track in a multi-CD album; 1 on a server < 1.26 (one CD per album). */
+    val disc: Int = 1,
 )
 
 @Serializable
