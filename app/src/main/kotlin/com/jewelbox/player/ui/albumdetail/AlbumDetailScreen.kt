@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -187,7 +187,17 @@ private fun AlbumDetailContent(
                     modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
                 )
             }
-            items(items = album.tracks, key = { it.id }) { track ->
+            // Several CDs: a "CD n" heading above the tracks of each one.
+            val multiDisc = album.tracks.distinctBy { it.disc }.size > 1
+            itemsIndexed(items = album.tracks, key = { _, track -> track.id }) { index, track ->
+                if (multiDisc && track.disc != album.tracks.getOrNull(index - 1)?.disc) {
+                    Text(
+                        stringResource(R.string.disc_header, track.disc),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                    )
+                }
                 TrackRow(
                     track = track,
                     isCurrent = playback.currentTrackId == track.id,
