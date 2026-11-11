@@ -55,7 +55,7 @@ class DtoParsingTest {
           "total_duration": "60:57", "ean": "0724384960650", "rating": 5,
           "cover_url": "/covers/abc", "notes": "Culte.",
           "is_lent": false, "lent_to": null, "lent_at": null,
-          "is_wanted": false, "audio_folder": "Daft Punk/Discovery",
+          "is_wanted": true, "audio_folder": "Daft Punk/Discovery",
           "has_audio": true,
           "created_at": "2026-01-01", "updated_at": "2026-01-02",
           "artist": {"id": 3, "name": "Daft Punk"},
@@ -77,6 +77,7 @@ class DtoParsingTest {
         assertEquals("60:57", album.totalDuration)
         assertEquals("/covers/abc", album.coverUrl)
         assertTrue(album.hasAudio)
+        assertTrue(album.isWanted)
         assertEquals(2, album.tracks.size)
         assertTrue(album.tracks[0].hasFile)
         assertTrue(album.tracks[0].isFavorite)
