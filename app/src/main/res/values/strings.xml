@@ -44,6 +44,8 @@
     <string name="back">Retour</string>
     <string name="tracks_header">Pistes</string>
     <string name="disc_header">CD %1$d</string>
+    <string name="wanted_badge">Souhait</string>
+    <string name="wanted_album">Liste de souhaits</string>
     <string name="no_tracks">Aucune piste pour cet album.</string>
     <string name="now_playing_indicator">En cours de lecture</string>
     <string name="favorite">Favori</string>

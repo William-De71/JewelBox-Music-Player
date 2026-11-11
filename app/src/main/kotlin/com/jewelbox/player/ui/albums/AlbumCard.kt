@@ -23,9 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.jewelbox.player.R
 import com.jewelbox.player.data.net.AlbumDto
 import com.jewelbox.player.data.resolveCover
 
@@ -65,6 +67,24 @@ fun AlbumCard(
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.fillMaxSize(0.5f),
                 )
+            }
+
+            // Wish list album (playable, the CD not owned yet).
+            if (album.isWanted) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.wanted_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                    )
+                }
             }
 
             // Play overlay, bottom-end, only when the album has playable tracks.

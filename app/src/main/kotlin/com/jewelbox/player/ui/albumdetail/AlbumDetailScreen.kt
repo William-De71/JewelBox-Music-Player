@@ -259,7 +259,9 @@ private fun AlbumHeader(album: AlbumDto, serverUrl: String) {
             color = MaterialTheme.colorScheme.primary,
         )
 
+        val wantedLabel = stringResource(R.string.wanted_album)
         val meta = buildList {
+            if (album.isWanted) add(wantedLabel)
             album.year?.let { add(it.toString()) }
             album.genre?.takeIf { it.isNotBlank() }?.let { add(it) }
             album.label?.name?.takeIf { it.isNotBlank() }?.let { add(it) }

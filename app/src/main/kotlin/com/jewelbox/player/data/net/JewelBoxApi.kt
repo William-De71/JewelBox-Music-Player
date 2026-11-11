@@ -25,7 +25,9 @@ interface JewelBoxApi {
     // Sorted by artist then year ascending: the server adds "a.year ASC" as the
     // secondary key whenever sort=artist, so this one call gives artist → date order.
     // wanted=false restricts to the owned collection, excluding the wishlist
-    // (is_wanted=1) — those are CDs the user doesn't have yet.
+    // (is_wanted=1) — those are CDs the user doesn't have yet. playable_wanted=true
+    // brings back the wish list albums that have audio files (server >= 1.27;
+    // ignored before): bought as MP3, they play like the owned ones.
     @GET("api/albums")
     suspend fun albums(
         @Query("page") page: Int = 1,
@@ -33,6 +35,7 @@ interface JewelBoxApi {
         @Query("sort") sort: String = "artist",
         @Query("order") order: String = "asc",
         @Query("wanted") wanted: String = "false",
+        @Query("playable_wanted") playableWanted: String = "true",
     ): AlbumsPage
 
     @GET("api/albums/{id}")

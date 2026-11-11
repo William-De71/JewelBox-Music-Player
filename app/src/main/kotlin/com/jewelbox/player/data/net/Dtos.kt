@@ -104,6 +104,8 @@ data class AlbumDto(
     val notes: String? = null,
     @SerialName("cover_url") val coverUrl: String? = null,
     @SerialName("has_audio") val hasAudio: Boolean = false,
+    /** Wish list album: the CD is not owned, but its files may be there (bought as MP3) and play like any other. */
+    @SerialName("is_wanted") val isWanted: Boolean = false,
     val artist: ArtistDto,
     val label: LabelDto? = null,
     // Present only on the album-detail response (GET /api/albums/:id); empty in list responses.
